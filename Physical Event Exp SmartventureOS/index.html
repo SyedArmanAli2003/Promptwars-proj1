@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="VenueIQ — Smart Stadium Experience: Real-time crowd intelligence for attendees and staff at large-scale sporting venues." />
+  <title>VenueIQ — Smart Stadium Experience</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Google Charts -->
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <!-- Firebase SDKs (compat v10) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+
+  <!-- ===== SPLASH SCREEN ===== -->
+  <div id="splash-screen" role="status" aria-label="Loading VenueIQ">
+    <div class="splash-inner">
+      <div class="splash-logo-row">
+        <span class="splash-icon" aria-hidden="true">&#9673;</span>
+        <span class="splash-wordmark">VenueIQ</span>
+      </div>
+      <p class="splash-tagline">Real-time intelligence for smarter venues</p>
+      <div class="splash-progress-track" aria-hidden="true"><div class="splash-progress-bar"></div></div>
+      <p class="splash-sub">Connecting to live data feeds…</p>
+    </div>
+  </div>
+
+  <!-- ===== LOGIN / ROLE SELECTION ===== -->
+  <div id="login-screen" class="login-screen hidden" role="dialog" aria-modal="true" aria-label="Role selection">
+    <div class="login-card">
+      <div class="login-header">
+        <span class="login-icon" aria-hidden="true">&#9673;</span>
+        <h1 class="login-title">VenueIQ</h1>
+        <p class="login-tagline">Smart Stadium Experience</p>
+      </div>
+      <p class="login-prompt">Choose your role to enter</p>
+      <div class="login-roles" role="group" aria-label="Available roles">
+        <button class="login-role-btn" id="btn-role-attendee" data-role="attendee"
+                aria-label="Enter as Attendee — view the stadium map, wait times and exits">
+          <span class="role-emoji" aria-hidden="true">🎟️</span>
+          <div class="role-info">
+            <span class="role-title">Attendee</span>
+            <span class="role-desc">View map, find food &amp; exits</span>
+          </div>
+          <span class="role-arrow" aria-hidden="true">&#8594;</span>
+        </button>
+        <button class="login-role-btn login-role-btn--staff" id="btn-role-staff" data-role="staff"
+                aria-label="Enter as Staff Admin — monitor crowd levels and deploy staff">
+          <span class="role-emoji" aria-hidden="true">🛡️</span>
+          <div class="role-info">
+            <span class="role-title">Staff Admin</span>
+            <span class="role-desc">Monitor crowd, deploy staff</span>
+          </div>
+          <span class="role-arrow" aria-hidden="true">&#8594;</span>
+        </button>
+      </div>
+      <p class="login-note">VenueIQ v1.0 · Google Prompt Wars Hackathon</p>
+    </div>
+  </div>
+
+  <!-- ===== MAIN APPLICATION (shown after login) ===== -->
+  <div id="main-app" class="hidden">
+
+    <!-- ===== TOP NAV ===== -->
+    <header class="topnav" id="topnav">
+      <div class="topnav__brand">
+        <span class="topnav__logo" aria-hidden="true">&#9673;</span>
+        <span class="topnav__name">VenueIQ</span>
+        <span class="topnav__tagline">Smart Stadium Experience</span>
+      </div>
+      <nav class="topnav__tabs" role="tablist" aria-label="Main navigation">
+        <button class="tab-btn active" id="tab-attendee" role="tab"
+                aria-selected="true" aria-controls="view-attendee">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+          <span>Attendee View</span>
+        </button>
+        <button class="tab-btn" id="tab-staff" role="tab"
+                aria-selected="false" aria-controls="view-staff">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+          </svg>
+          <span>Staff Dashboard</span>
+        </button>
+      </nav>
+      <div class="topnav__status">
+        <button id="btn-sign-out" class="btn-sign-out" aria-label="Sign Out">Sign Out</button>
+        <span class="live-badge" aria-label="Live data">LIVE</span>
+        <span id="nav-clock" class="nav-clock" aria-live="off">––:––:––</span>
+      </div>
+    </header>
+
+    <!-- ===== ATTENDEE VIEW ===== -->
+    <main id="view-attendee" class="view active" role="tabpanel" aria-labelledby="tab-attendee">
+
+      <!-- Alert Banner -->
+      <div class="alert-banner" id="alert-banner" role="alert" aria-live="polite" aria-atomic="true">
+        <span class="alert-banner__icon" aria-hidden="true">⚡</span>
+        <span class="alert-banner__text" id="alert-text">Gate 4 is congested — use Gate 6 instead</span>
+        <div class="alert-banner__dots" id="alert-dots" aria-hidden="true">
+          <span class="dot active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </div>
+
+      <div class="content-wrapper">
+
+        <!-- Stadium Map -->
+        <section class="map-section" aria-label="Stadium seating map with live crowd density">
+          <div class="section-header">
+            <h1 class="section-title">Stadium Live Map</h1>
+            <div class="legend" role="list" aria-label="Map color legend">
+              <span class="legend-item" role="listitem">
+                <span class="legend-dot low" aria-hidden="true"></span>Low (0–40%)
+              </span>
+              <span class="legend-item" role="listitem">
+                <span class="legend-dot mid" aria-hidden="true"></span>Medium (40–70%)
+              </span>
+              <span class="legend-item" role="listitem">
+                <span class="legend-dot high" aria-hidden="true"></span>High (70–100%)
+              </span>
+            </div>
+          </div>
+
+          <div class="stadium-container">
+            <!-- Heatmap SVG — populated by initHeatmap() in script.js -->
+            <svg id="stadium-svg" class="stadium-svg" viewBox="0 0 800 560"
+                 xmlns="http://www.w3.org/2000/svg" role="img"
+                 aria-label="Stadium crowd-density heatmap showing sections 101 to 140 with colour-coded occupancy levels"></svg>
+            <!-- Floating tooltip -->
+            <div id="section-tooltip" class="section-tooltip" role="tooltip" aria-hidden="true"></div>
+          </div>
+
+          <div class="map-controls">
+            <button class="btn-primary" id="smart-route-btn"
+                    aria-label="Calculate the least-congested route to the nearest exit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
+              </svg>
+              Smart Route to Exit
+            </button>
+            <button class="btn-secondary hidden" id="reset-route-btn"
+                    aria-label="Clear the smart route overlay">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+              </svg>
+              Reset View
+            </button>
+          </div>
+
+          <!-- Smart Route Info Banner -->
+          <div class="route-info hidden" id="route-info" role="status">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#00e5ff" aria-hidden="true">
+              <path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.28L13 17v5l6-3-1.22-1.22C20.91 15.86 23 12.18 23 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 4.18 2.09 7.86 5.22 10.05L6 23l6 3v-5l-2.28 2.28C7.81 22 6 19.21 6 16c0-4.08 3.05-7.44 7-7.93V2.05z"/>
+            </svg>
+            <div>
+              <strong>Smart Route activated</strong>
+              <span>Head to Gate 6 (West) via South concourse — You'll save ~8 mins!</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Wait Time Cards -->
+        <section class="wait-times-section" aria-label="Live wait times for venue facilities">
+          <h2 class="section-title">Live Wait Times</h2>
+          <div class="wait-cards" id="wait-cards">
+
+            <article class="wait-card" id="wc-food" aria-label="Food Court wait time">
+              <div class="wait-card__icon" aria-hidden="true">🍔</div>
+              <div class="wait-card__body">
+                <h3 class="wait-card__label">Food Court</h3>
+                <p class="wait-card__location">Gate A</p>
+                <div class="wait-card__time">
+                  <span class="wait-card__minutes" id="wt-food">12</span>
+                  <span class="wait-card__unit">min</span>
+                </div>
+              </div>
+              <div class="wait-card__bar" aria-hidden="true">
+                <div class="wait-card__fill high" id="wf-food" style="height:60%"></div>
+              </div>
+              <span class="wait-card__badge high" id="wb-food" aria-label="High wait time">HIGH</span>
+            </article>
+
+            <article class="wait-card" id="wc-rest" aria-label="Restrooms wait time">
+              <div class="wait-card__icon" aria-hidden="true">🚻</div>
+              <div class="wait-card__body">
+                <h3 class="wait-card__label">Restrooms</h3>
+                <p class="wait-card__location">Level 2</p>
+                <div class="wait-card__time">
+                  <span class="wait-card__minutes" id="wt-rest">5</span>
+                  <span class="wait-card__unit">min</span>
+                </div>
+              </div>
+              <div class="wait-card__bar" aria-hidden="true">
+                <div class="wait-card__fill mid" id="wf-rest" style="height:30%"></div>
+              </div>
+              <span class="wait-card__badge mid" id="wb-rest" aria-label="Medium wait time">MED</span>
+            </article>
+
+            <article class="wait-card" id="wc-snack" aria-label="Snack Bar wait time">
+              <div class="wait-card__icon" aria-hidden="true">🥤</div>
+              <div class="wait-card__body">
+                <h3 class="wait-card__label">Snack Bar</h3>
+                <p class="wait-card__location">Gate C</p>
+                <div class="wait-card__time">
+                  <span class="wait-card__minutes" id="wt-snack">18</span>
+                  <span class="wait-card__unit">min</span>
+                </div>
+              </div>
+              <div class="wait-card__bar" aria-hidden="true">
+                <div class="wait-card__fill high" id="wf-snack" style="height:85%"></div>
+              </div>
+              <span class="wait-card__badge high" id="wb-snack" aria-label="High wait time">HIGH</span>
+            </article>
+
+            <article class="wait-card" id="wc-exit" aria-label="Exit Queue wait time">
+              <div class="wait-card__icon" aria-hidden="true">🚪</div>
+              <div class="wait-card__body">
+                <h3 class="wait-card__label">Exit Queue</h3>
+                <p class="wait-card__location">South</p>
+                <div class="wait-card__time">
+                  <span class="wait-card__minutes" id="wt-exit">3</span>
+                  <span class="wait-card__unit">min</span>
+                </div>
+              </div>
+              <div class="wait-card__bar" aria-hidden="true">
+                <div class="wait-card__fill low" id="wf-exit" style="height:15%"></div>
+              </div>
+              <span class="wait-card__badge low" id="wb-exit" aria-label="Low wait time">LOW</span>
+            </article>
+
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ===== STAFF DASHBOARD ===== -->
+    <main id="view-staff" class="view hidden" role="tabpanel" aria-labelledby="tab-staff">
+
+      <div class="dashboard-header">
+        <h1 class="section-title">Operations Dashboard</h1>
+        <div class="dashboard-timestamp" id="dash-timestamp"></div>
+      </div>
+
+      <!-- Metric Cards -->
+      <section class="metrics-grid" role="region" aria-label="Key performance metrics">
+
+        <div class="metric-card" id="mc-attendees">
+          <div class="metric-card__icon blue" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+          </div>
+          <div class="metric-card__body">
+            <div class="metric-card__value" id="mv-attendees">42,817</div>
+            <div class="metric-card__label">Total Attendees</div>
+            <div class="metric-card__change positive">&#9650; 98.4% capacity</div>
+          </div>
+        </div>
+
+        <div class="metric-card" id="mc-alerts">
+          <div class="metric-card__icon red" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+          </div>
+          <div class="metric-card__body">
+            <div class="metric-card__value danger" id="mv-alerts">7</div>
+            <div class="metric-card__label">Active Alerts</div>
+            <div class="metric-card__change negative">&#9650; 3 new in last hour</div>
+          </div>
+        </div>
+
+        <div class="metric-card" id="mc-wait">
+          <div class="metric-card__icon orange" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+            </svg>
+          </div>
+          <div class="metric-card__body">
+            <div class="metric-card__value warning" id="mv-wait">9.4 min</div>
+            <div class="metric-card__label">Avg Wait Time</div>
+            <div class="metric-card__change negative">&#9650; 2.1 min vs. last 30m</div>
+          </div>
+        </div>
+
+        <div class="metric-card" id="mc-staff">
+          <div class="metric-card__icon green" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+            </svg>
+          </div>
+          <div class="metric-card__body">
+            <div class="metric-card__value success" id="mv-staff">184</div>
+            <div class="metric-card__label">Staff On Duty</div>
+            <div class="metric-card__change positive">&#9650; 12 deployed this hour</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Google Charts Analytics Section -->
+      <section class="charts-section" aria-label="Live analytics charts">
+        <h2 class="section-title">Live Analytics</h2>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3 class="chart-title">Wait Times (minutes)</h3>
+            <div id="wait-times-chart" role="img" aria-label="Bar chart showing live wait times for each venue facility"></div>
+          </div>
+          <div class="chart-card">
+            <h3 class="chart-title">Top 10 Densest Sections</h3>
+            <div id="section-density-chart" role="img" aria-label="Bar chart showing the ten most crowded stadium sections by occupancy percentage"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Zone Table + Activity Feed -->
+      <div class="dashboard-body">
+
+        <!-- Zone Status Table -->
+        <section class="zone-section" aria-label="Zone status and staff deployment table">
+          <h2 class="section-title">Zone Status</h2>
+          <div class="table-wrapper">
+            <table class="zone-table" id="zone-table">
+              <thead>
+                <tr>
+                  <th scope="col">Zone</th>
+                  <th scope="col">Crowd Level</th>
+                  <th scope="col">Wait Time</th>
+                  <th scope="col">Staff Count</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="zone-tbody">
+                <tr data-zone="A" class="zone-row">
+                  <td><span class="zone-badge">Zone A</span><br/><small>North Concourse</small></td>
+                  <td><span class="level-pill high" aria-label="High crowd level">HIGH</span></td>
+                  <td><span class="wait-number">14 min</span></td>
+                  <td><span class="staff-count">6</span></td>
+                  <td><button class="deploy-btn" data-zone="Zone A — North Concourse"
+                              aria-label="Deploy additional staff to Zone A North Concourse">Deploy Staff</button></td>
+                </tr>
+                <tr data-zone="B" class="zone-row">
+                  <td><span class="zone-badge">Zone B</span><br/><small>East Food Court</small></td>
+                  <td><span class="level-pill high" aria-label="High crowd level">HIGH</span></td>
+                  <td><span class="wait-number">18 min</span></td>
+                  <td><span class="staff-count">4</span></td>
+                  <td><button class="deploy-btn" data-zone="Zone B — East Food Court"
+                              aria-label="Deploy additional staff to Zone B East Food Court">Deploy Staff</button></td>
+                </tr>
+                <tr data-zone="C" class="zone-row">
+                  <td><span class="zone-badge">Zone C</span><br/><small>South Exit</small></td>
+                  <td><span class="level-pill mid" aria-label="Medium crowd level">MED</span></td>
+                  <td><span class="wait-number">8 min</span></td>
+                  <td><span class="staff-count">9</span></td>
+                  <td><button class="deploy-btn" data-zone="Zone C — South Exit"
+                              aria-label="Deploy additional staff to Zone C South Exit">Deploy Staff</button></td>
+                </tr>
+                <tr data-zone="D" class="zone-row">
+                  <td><span class="zone-badge">Zone D</span><br/><small>West Restrooms</small></td>
+                  <td><span class="level-pill low" aria-label="Low crowd level">LOW</span></td>
+                  <td><span class="wait-number">3 min</span></td>
+                  <td><span class="staff-count">12</span></td>
+                  <td><button class="deploy-btn deployed" data-zone="Zone D — West Restrooms"
+                              aria-label="Staff already deployed to Zone D West Restrooms" disabled>&#10003; Deployed</button></td>
+                </tr>
+                <tr data-zone="E" class="zone-row">
+                  <td><span class="zone-badge">Zone E</span><br/><small>Gate 4 Entry</small></td>
+                  <td><span class="level-pill high" aria-label="High crowd level">HIGH</span></td>
+                  <td><span class="wait-number">21 min</span></td>
+                  <td><span class="staff-count">3</span></td>
+                  <td><button class="deploy-btn" data-zone="Zone E — Gate 4 Entry"
+                              aria-label="Deploy additional staff to Zone E Gate 4 Entry">Deploy Staff</button></td>
+                </tr>
+                <tr data-zone="F" class="zone-row">
+                  <td><span class="zone-badge">Zone F</span><br/><small>VIP Lounge</small></td>
+                  <td><span class="level-pill low" aria-label="Low crowd level">LOW</span></td>
+                  <td><span class="wait-number">1 min</span></td>
+                  <td><span class="staff-count">15</span></td>
+                  <td><button class="deploy-btn deployed" data-zone="Zone F — VIP Lounge"
+                              aria-label="Staff already deployed to Zone F VIP Lounge" disabled>&#10003; Deployed</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Activity Feed -->
+        <aside class="activity-feed" aria-label="Live activity feed" role="log" aria-live="polite">
+          <h2 class="section-title">Live Activity Feed</h2>
+          <div class="feed-list" id="feed-list">
+            <!-- Populated by JS -->
+          </div>
+        </aside>
+
+      </div>
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span class="footer-logo" aria-hidden="true">&#9673;</span>
+        <span class="footer-logo-text">VenueIQ v1.0</span>
+        <span class="footer-sep" aria-hidden="true">—</span>
+        <span>Built for <strong>Google Prompt Wars Hackathon</strong></span>
+        <span class="footer-sep" aria-hidden="true">—</span>
+        <span>Improving fan experience through real-time crowd intelligence</span>
+      </div>
+    </footer>
+
+    <!-- ===== VENUEBOT CHAT ASSISTANT ===== -->
+    <button class="venuebot-btn" id="venuebot-btn" aria-label="Open VenueBot AI assistant" title="Ask VenueBot">
+      <svg class="venuebot-icon-chat" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+      </svg>
+      <svg class="venuebot-icon-close hidden" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+      <span class="venuebot-badge" id="venuebot-badge" aria-label="1 unread message">1</span>
+    </button>
+
+    <div class="venuebot-panel" id="venuebot-panel" role="dialog" aria-label="VenueBot assistant" aria-modal="true">
+      <div class="venuebot-header">
+        <div class="venuebot-header-left">
+          <div class="venuebot-avatar" aria-hidden="true">🏟️</div>
+          <div class="venuebot-identity">
+            <span class="venuebot-name">VenueBot</span>
+            <span class="venuebot-status">
+              <span class="venuebot-online-dot" aria-hidden="true"></span>AI Assistant · Online
+            </span>
+          </div>
+        </div>
+        <button class="venuebot-close-btn" id="venuebot-close-btn" aria-label="Close VenueBot chat panel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="venuebot-messages" id="venuebot-messages" role="log" aria-live="polite" aria-label="Chat messages">
+        <!-- Populated by JS on first open -->
+      </div>
+      <div class="venuebot-composer">
+        <input type="text" id="venuebot-input" class="venuebot-input"
+               placeholder="Ask about food, exits, restrooms…"
+               aria-label="Type your message to VenueBot"
+               maxlength="200" autocomplete="off" />
+        <button class="venuebot-send-btn" id="venuebot-send-btn" aria-label="Send message to VenueBot">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /#main-app -->
+
+  <script src="script.js"></script>
+</body>
+</html>
