@@ -1788,3 +1788,148 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   .login-role-btn { padding: 14px 16px; }
   .role-emoji { font-size: 22px; }
 }
+
+/* ─────────────────────────────────────────────
+   PIN MODAL
+   ───────────────────────────────────────────── */
+.pin-modal {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(2, 12, 27, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-modal.hidden { display: none; }
+
+.pin-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 40px 36px;
+  max-width: 360px; width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.pin-icon {
+  font-size: 48px !important;
+  color: var(--blue-400);
+  display: block;
+  margin-bottom: 16px;
+}
+.pin-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.pin-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+.pin-input {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 28px;
+  letter-spacing: 12px;
+  text-align: center;
+  background: var(--navy-800);
+  border: 2px solid var(--card-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+  margin-bottom: 12px;
+  font-family: var(--font-heading);
+}
+.pin-input:focus { border-color: var(--blue-400); }
+.pin-error {
+  font-size: 13px;
+  color: var(--red-400);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.pin-error.hidden { display: none; }
+.pin-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* ─────────────────────────────────────────────
+   SECURE BADGE & SWITCH ROLE
+   ───────────────────────────────────────────── */
+.secure-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 20px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.btn-switch-role {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-switch-role:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+/* ─────────────────────────────────────────────
+   FIREBASE FOOTER BADGE
+   ───────────────────────────────────────────── */
+.firebase-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: rgba(255, 109, 0, 0.08);
+  border: 1px solid rgba(255, 109, 0, 0.2);
+  border-radius: 20px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────
+   VENUEBOT INPUT VALIDATION
+   ───────────────────────────────────────────── */
+.vb-input-error {
+  font-size: 11px;
+  color: var(--red-400);
+  padding: 2px 4px;
+  margin: 2px 0 0;
+}
+.vb-input-error.hidden { display: none; }
+
+/* ─────────────────────────────────────────────
+   SHAKE ANIMATION (wrong PIN)
+   ───────────────────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-10px); }
+  40%       { transform: translateX(10px); }
+  60%       { transform: translateX(-6px); }
+  80%       { transform: translateX(6px); }
+}
+

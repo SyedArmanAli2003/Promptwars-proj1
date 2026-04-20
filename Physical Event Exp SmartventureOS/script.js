@@ -1,6 +1,6 @@
 /* =============================================
    VenueIQ — Smart Stadium Experience
-   script.js — Google Services Integrated
+   script.js — No Firebase Auth, PIN-based roles
    ============================================= */
 
 'use strict';
@@ -10,101 +10,105 @@
    ───────────────────────────────────────────── */
 
 const WEMBLEY_COORDS = { lat: 51.5560, lng: -0.2795 };
+const STAFF_PIN = '2024';
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 const ZONES = [
   { id: 'NorthStand', label: 'North Stand', coords: [
-    {lat: 51.5569, lng: -0.2805}, {lat: 51.5569, lng: -0.2785}, {lat: 51.5565, lng: -0.2785}, {lat: 51.5565, lng: -0.2805}
+    {lat: 51.5569, lng: -0.2805}, {lat: 51.5569, lng: -0.2785},
+    {lat: 51.5565, lng: -0.2785}, {lat: 51.5565, lng: -0.2805}
   ]},
   { id: 'SouthStand', label: 'South Stand', coords: [
-    {lat: 51.5555, lng: -0.2805}, {lat: 51.5555, lng: -0.2785}, {lat: 51.5551, lng: -0.2785}, {lat: 51.5551, lng: -0.2805}
+    {lat: 51.5555, lng: -0.2805}, {lat: 51.5555, lng: -0.2785},
+    {lat: 51.5551, lng: -0.2785}, {lat: 51.5551, lng: -0.2805}
   ]},
   { id: 'EastWing', label: 'East Wing', coords: [
-    {lat: 51.5564, lng: -0.2783}, {lat: 51.5564, lng: -0.2770}, {lat: 51.5556, lng: -0.2770}, {lat: 51.5556, lng: -0.2783}
+    {lat: 51.5564, lng: -0.2783}, {lat: 51.5564, lng: -0.2770},
+    {lat: 51.5556, lng: -0.2770}, {lat: 51.5556, lng: -0.2783}
   ]},
   { id: 'WestWing', label: 'West Wing', coords: [
-    {lat: 51.5564, lng: -0.2820}, {lat: 51.5564, lng: -0.2807}, {lat: 51.5556, lng: -0.2807}, {lat: 51.5556, lng: -0.2820}
+    {lat: 51.5564, lng: -0.2820}, {lat: 51.5564, lng: -0.2807},
+    {lat: 51.5556, lng: -0.2807}, {lat: 51.5556, lng: -0.2820}
   ]},
-  { id: 'FoodA', label: 'Concourse A', coords: [
-    {lat: 51.5572, lng: -0.2795}, {lat: 51.5570, lng: -0.2780}, {lat: 51.5569, lng: -0.2795}
+  { id: 'ConcourseA', label: 'Concourse A', coords: [
+    {lat: 51.5572, lng: -0.2800}, {lat: 51.5570, lng: -0.2780},
+    {lat: 51.5569, lng: -0.2800}
   ]},
-  { id: 'FoodB', label: 'Concourse B', coords: [
-    {lat: 51.5548, lng: -0.2810}, {lat: 51.5548, lng: -0.2800}, {lat: 51.5550, lng: -0.2800}
+  { id: 'ConcourseB', label: 'Concourse B', coords: [
+    {lat: 51.5548, lng: -0.2810}, {lat: 51.5548, lng: -0.2800},
+    {lat: 51.5550, lng: -0.2800}
   ]}
 ];
 
-const MARKERS = [
-  { lat: 51.5571, lng: -0.2790, title: 'Food Court A', icon: 'http://maps.google.com/mapfiles/ms/icons/restaurant.png' },
-  { lat: 51.5550, lng: -0.2805, title: 'Restrooms', icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' },
-  { lat: 51.5560, lng: -0.2775, title: 'First Aid', icon: 'http://maps.google.com/mapfiles/ms/icons/hospitals.png' },
-  { lat: 51.5560, lng: -0.2815, title: 'Exit C', icon: 'http://maps.google.com/mapfiles/ms/icons/red-pushpin.png' }
+const MAP_MARKERS = [
+  { lat: 51.5571, lng: -0.2790, title: 'Food Court A — ~4 min wait',     icon: 'http://maps.google.com/mapfiles/ms/icons/restaurant.png' },
+  { lat: 51.5550, lng: -0.2805, title: 'Restrooms — ~2 min wait',        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'   },
+  { lat: 51.5560, lng: -0.2775, title: 'First Aid Station',              icon: 'http://maps.google.com/mapfiles/ms/icons/hospitals.png'  },
+  { lat: 51.5560, lng: -0.2815, title: 'Exit C — South Gate',           icon: 'http://maps.google.com/mapfiles/ms/icons/red-pushpin.png'}
 ];
-
-const FIREBASE_CONFIG = {
-  apiKey:            'AIzaSyBkI7ryr8dXujHjOs9Q1O1ALq_gDIpwVlI',
-  authDomain:        'promptwars-proj1.firebaseapp.com',
-  databaseURL:       'https://promptwars-proj1-default-rtdb.firebaseio.com',
-  projectId:         'promptwars-proj1',
-  storageBucket:     'promptwars-proj1.appspot.com',
-  messagingSenderId: '000000000000',
-  appId:             'REPLACE'
-};
-const ADMIN_WHITELIST = ['admin@venueiq.com'];
 
 const VENUEBOT_INTENTS = [
-  { keywords: ['food', 'eat', 'hungry', 'snack', 'restaurant', 'concession', 'drink'], reply: '🍔 The shortest food queue right now is at <strong>Gate A Food Court</strong> — only <strong>4 min</strong> wait. Gate C has 12 min. I recommend Gate A!' },
-  { keywords: ['toilet', 'restroom', 'bathroom', 'wc', 'loo', 'washroom'], reply: '🚻 Nearest restrooms with under 2 min wait: <strong>Level 2 near Section 115</strong>, and <strong>Level 3 near Section 128</strong>.' },
-  { keywords: ['exit', 'leave', 'go home', 'out', 'leaving', 'home', 'outside', 'gate'], reply: '🚪 Best exit right now: <strong>South Exit (Gate 8)</strong> — 3 min walk, 2 min queue. Avoid North Exit — 18 min queue currently.' },
-  { keywords: ['seat', 'lost', 'where', 'find', 'section', 'location', 'directions', 'row'], reply: '📍 Your seat is in <strong>Section 118, Row G</strong>. From Gate 4: walk straight 50m, then turn left at the <span style="color:#4db8ff">blue signs</span>.' },
+  { keywords: ['food', 'eat', 'hungry', 'snack', 'restaurant', 'concession'],
+    reply: '🍔 The shortest food queue is at <strong>Gate A Food Court</strong> — only <strong>4 min</strong> wait. Gate C has 12 min. Recommend Gate A!' },
+  { keywords: ['toilet', 'restroom', 'bathroom', 'wc', 'loo', 'washroom'],
+    reply: '🚻 Nearest restrooms under 2 min: <strong>Level 2 near Section 115</strong>, and <strong>Level 3 near Section 128</strong>.' },
+  { keywords: ['exit', 'leave', 'home', 'out', 'gate', 'leaving'],
+    reply: '🚪 Best exit: <strong>South Exit (Gate 8)</strong> — 3 min walk, 2 min queue. Avoid North Exit — 18 min queue.' },
+  { keywords: ['seat', 'lost', 'where', 'find', 'section', 'directions', 'row'],
+    reply: '📍 Your seat is in <strong>Section 118, Row G</strong>. From Gate 4: walk straight 50m, left at the <span style="color:#4db8ff">blue signs</span>.' },
 ];
-const VB_FALLBACK = '💬 I can help with <strong>food queues</strong>, <strong>restrooms</strong>, <strong>exits</strong>, and <strong>finding your seat</strong>. What do you need?';
+const VB_FALLBACK  = '💬 I can help with <strong>food queues</strong>, <strong>restrooms</strong>, <strong>exits</strong>, and <strong>finding your seat</strong>. What do you need?';
 
 /* ─────────────────────────────────────────────
    2. APPLICATION STATE
    ───────────────────────────────────────────── */
 
 const state = {
-  uid: null,
-  userRole: null, 
-  currentView: 'attendee',
   db: null,
   map: null,
   polygons: {},
-  zonesData: {}, // Holds density, waitTime, staffCount
+  zonesData: {},
   historyCounter: 0,
-  densityHistory: [['Time', 'Average Density']],
+  densityHistory: [['Time', 'Average Density %']],
   waitTimesChart: null,
   densityLineChart: null,
   gaugeChart: null,
-  chartsReady: false
+  chartsReady: false,
+  sessionTimer: null,
+  vbSeeded: false,
 };
 
 const DOM = {};
-function cacheDOMElements() {
-  DOM.splash        = document.getElementById('splash-screen');
-  DOM.loginScreen   = document.getElementById('login-screen');
-  DOM.mainApp       = document.getElementById('main-app');
-  DOM.btnGoogleLogin = document.getElementById('btn-google-login');
-  DOM.btnSignOut    = document.getElementById('btn-sign-out');
-  DOM.navUserProfile = document.getElementById('user-profile-nav');
-  DOM.navUserPhoto   = document.getElementById('nav-user-photo');
-  DOM.navUserName    = document.getElementById('nav-user-name');
-  DOM.navClock      = document.getElementById('nav-clock');
-  DOM.viewAttendee  = document.getElementById('view-attendee');
-  DOM.viewStaff     = document.getElementById('view-staff');
-  DOM.tabAttendee   = document.getElementById('tab-attendee');
-  DOM.tabStaff      = document.getElementById('tab-staff');
-  DOM.reqStaffBtn   = document.getElementById('btn-request-staff');
-  DOM.dashTimestamp = document.getElementById('dash-timestamp');
-  DOM.zoneTableBody = document.getElementById('zone-tbody');
-  
-  DOM.venuebotBtn   = document.getElementById('venuebot-btn');
-  DOM.venuebotPanel = document.getElementById('venuebot-panel');
-  DOM.venuebotMsgs  = document.getElementById('venuebot-messages');
-  DOM.venuebotInput = document.getElementById('venuebot-input');
-  DOM.venuebotSend  = document.getElementById('venuebot-send-btn');
-  DOM.venuebotClose = document.getElementById('venuebot-close-btn');
 
-  // DOM elements required for simple sync mappings
+function cacheDOMElements() {
+  DOM.splash           = document.getElementById('splash-screen');
+  DOM.loginScreen      = document.getElementById('login-screen');
+  DOM.mainApp          = document.getElementById('main-app');
+  DOM.btnAttendee      = document.getElementById('btn-role-attendee');
+  DOM.btnStaff         = document.getElementById('btn-role-staff');
+  DOM.pinModal         = document.getElementById('pin-modal');
+  DOM.pinInput         = document.getElementById('pin-input');
+  DOM.pinError         = document.getElementById('pin-error');
+  DOM.btnPinSubmit     = document.getElementById('btn-pin-submit');
+  DOM.btnPinCancel     = document.getElementById('btn-pin-cancel');
+  DOM.sessionExpired   = document.getElementById('session-expired-modal');
+  DOM.btnSessionOk     = document.getElementById('btn-session-ok');
+  DOM.btnSwitchRole    = document.getElementById('btn-switch-role');
+  DOM.navClock         = document.getElementById('nav-clock');
+  DOM.tabAttendee      = document.getElementById('tab-attendee');
+  DOM.tabStaff         = document.getElementById('tab-staff');
+  DOM.viewAttendee     = document.getElementById('view-attendee');
+  DOM.viewStaff        = document.getElementById('view-staff');
+  DOM.dashTimestamp    = document.getElementById('dash-timestamp');
+  DOM.zoneTableBody    = document.getElementById('zone-tbody');
+  DOM.reqStaffBtn      = document.getElementById('btn-request-staff');
+  DOM.venuebotBtn      = document.getElementById('venuebot-btn');
+  DOM.venuebotPanel    = document.getElementById('venuebot-panel');
+  DOM.venuebotMsgs     = document.getElementById('venuebot-messages');
+  DOM.venuebotInput    = document.getElementById('venuebot-input');
+  DOM.venuebotSend     = document.getElementById('venuebot-send-btn');
+  DOM.venuebotClose    = document.getElementById('venuebot-close-btn');
+  DOM.vbInputError     = document.getElementById('vb-input-error');
   DOM.wb = {
     food:  { time: document.getElementById('wt-food'),  fill: document.getElementById('wf-food'),  badge: document.getElementById('wb-food') },
     rest:  { time: document.getElementById('wt-rest'),  fill: document.getElementById('wf-rest'),  badge: document.getElementById('wb-rest') },
@@ -114,347 +118,524 @@ function cacheDOMElements() {
 }
 
 /* ─────────────────────────────────────────────
-   3. FIREBASE INTEGRATION (AUTH + DB)
+   3. SESSION & ROLE MANAGEMENT (No Firebase Auth)
+   ───────────────────────────────────────────── */
+
+function getRole() {
+  return sessionStorage.getItem('venueiq_role');
+}
+
+function setRole(role) {
+  sessionStorage.setItem('venueiq_role', role);
+  resetSessionTimer();
+}
+
+function clearRole() {
+  sessionStorage.removeItem('venueiq_role');
+  if (state.sessionTimer) clearTimeout(state.sessionTimer);
+}
+
+function resetSessionTimer() {
+  if (state.sessionTimer) clearTimeout(state.sessionTimer);
+  state.sessionTimer = setTimeout(() => {
+    clearRole();
+    DOM.mainApp.classList.add('hidden');
+    DOM.sessionExpired.classList.remove('hidden');
+  }, SESSION_TIMEOUT_MS);
+}
+
+// Reset timer on any user interaction
+['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev => {
+  document.addEventListener(ev, () => { if (getRole()) resetSessionTimer(); }, { passive: true });
+});
+
+function handleAttendeeLogin() {
+  setRole('attendee');
+  enterApp('attendee');
+}
+
+function handleStaffRequest() {
+  DOM.pinInput.value = '';
+  DOM.pinError.classList.add('hidden');
+  DOM.pinModal.classList.remove('hidden');
+  setTimeout(() => DOM.pinInput.focus(), 100);
+}
+
+function verifyPin() {
+  const pin = DOM.pinInput.value.trim();
+  if (pin === STAFF_PIN) {
+    DOM.pinModal.classList.add('hidden');
+    setRole('staff');
+    enterApp('staff');
+  } else {
+    DOM.pinError.classList.remove('hidden');
+    DOM.pinInput.value = '';
+    DOM.pinInput.focus();
+    // Shake animation on pin card
+    const card = DOM.pinModal.querySelector('.pin-card');
+    card.style.animation = 'none';
+    requestAnimationFrame(() => { card.style.animation = 'shake 0.4s ease'; });
+  }
+}
+
+function enterApp(role) {
+  DOM.loginScreen.classList.add('fade-out');
+  setTimeout(() => {
+    DOM.loginScreen.classList.add('hidden');
+    DOM.mainApp.classList.remove('hidden');
+    DOM.tabStaff.classList.toggle('hidden', role !== 'staff');
+    switchView(role === 'staff' ? 'staff' : 'attendee');
+    if (!state.map) initGoogleMaps();
+    if (!state.chartsReady) initGoogleCharts();
+  }, 400);
+}
+
+function switchRole() {
+  clearRole();
+  DOM.mainApp.classList.add('hidden');
+  DOM.loginScreen.classList.remove('hidden', 'fade-out');
+}
+
+/* ─────────────────────────────────────────────
+   4. FIREBASE REALTIME DATABASE (No Auth)
    ───────────────────────────────────────────── */
 
 function initFirebase() {
-  if (typeof firebase === 'undefined') return;
-  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-  state.db = firebase.database();
+  if (typeof firebase === 'undefined' || typeof FIREBASE_CONFIG === 'undefined') {
+    console.warn('VenueIQ: Firebase config not loaded.');
+    startLocalSimulation();
+    return;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    state.db = firebase.database();
+    console.info('VenueIQ: Firebase Realtime Database connected.');
 
-  firebase.auth().onAuthStateChanged(user => {
-    if (user) {
-      handleAuthSuccess(user);
-    } else {
-      handleAuthSignOut();
-    }
-  });
+    // Realtime listener — UI updates whenever DB changes
+    state.db.ref('/venueiq/zones').on('value', snap => {
+      const data = snap.val();
+      if (data) {
+        state.zonesData = data;
+        updateUIWithFirebaseData();
+        updateCharts();
+        updateMapPolygons();
+      }
+    });
 
-  // Simulator: Write mock data to Firebase every 5s acting as the backend
-  setInterval(pushSimulationData, 5000);
+    // Push simulated data every 5s (acts as our backend)
+    setInterval(pushSimulationData, 5000);
+    pushSimulationData(); // immediate first push
 
-  // Listeners
-  state.db.ref('/venueiq/zones').on('value', snap => {
-    const data = snap.val();
-    if(data) {
-      state.zonesData = data;
-      updateUIWithFirebaseData();
-      updateCharts();
-      updateMapPolygons();
-    }
-  });
-}
-
-function handleAuthSuccess(user) {
-  state.uid = user.uid;
-  DOM.navUserProfile.style.display = 'flex';
-  DOM.navUserPhoto.src = user.photoURL || '';
-  DOM.navUserName.textContent = user.displayName || 'User';
-
-  state.db.ref(`/venueiq/users/${user.uid}/role`).once('value').then(snap => {
-    const role = snap.val();
-    const isStaffByEmail = (user.email && user.email.endsWith('@staff.venueiq.com')) || ADMIN_WHITELIST.includes(user.email);
-    state.userRole = role || (isStaffByEmail ? 'staff' : 'attendee');
-    
-    // Save evaluated role safely
-    state.db.ref(`/venueiq/users/${user.uid}/role`).set(state.userRole);
-
-    DOM.tabStaff.classList.toggle('hidden', state.userRole !== 'staff');
-    
-    DOM.loginScreen.classList.add('fade-out');
-    setTimeout(() => {
-      DOM.loginScreen.classList.add('hidden');
-      DOM.mainApp.classList.remove('hidden');
-      switchView(state.userRole === 'staff' ? 'staff' : 'attendee');
-      if (!state.map) initGoogleMaps();
-      if (!state.chartsReady) initGoogleCharts();
-    }, 400);
-  });
-}
-
-function handleAuthSignOut() {
-  state.uid = null;
-  state.userRole = null;
-  DOM.mainApp.classList.add('hidden');
-  DOM.loginScreen.classList.remove('hidden', 'fade-out');
-  DOM.navUserProfile.style.display = 'none';
-}
-
-function signInWithGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithPopup(provider).catch(e => alert(e.message));
-}
-function signOut() {
-  firebase.auth().signOut().catch(e => console.error(e));
-}
-function requestStaffAccess() {
-  if (!state.uid) return;
-  state.db.ref(`/venueiq/accessRequests/${state.uid}`).set({ status: 'pending', timestamp: Date.now() });
-  alert("Staff access requested.");
+  } catch (err) {
+    console.warn('VenueIQ: Firebase unavailable — using local simulation.', err.message);
+    startLocalSimulation();
+  }
 }
 
 function pushSimulationData() {
   if (!state.db) return;
   ZONES.forEach(z => {
-    const d = Math.floor(Math.random() * 80) + 20; // 20-100 density
-    const w = Math.floor(Math.random() * 20);      // 0-20 waitTime
-    const s = Math.floor(Math.random() * 15);      // 0-15 staffCount
-    state.db.ref(`/venueiq/zones/${z.id}`).update({ density: d, waitTime: w, staffCount: s });
+    const density    = Math.floor(Math.random() * 80) + 20;
+    const waitTime   = Math.floor(Math.random() * 20);
+    const staffCount = Math.floor(Math.random() * 15) + 2;
+    state.db.ref(`/venueiq/zones/${z.id}`).update({ density, waitTime, staffCount });
   });
 }
 
-function deployStaffLog(zoneId) {
-  const ts = Date.now();
-  state.db.ref(`/venueiq/events/${ts}`).set({ action: 'Deploy Staff', zone: zoneId });
-  // local increment
-  if (state.zonesData[zoneId]) {
-    state.db.ref(`/venueiq/zones/${zoneId}/staffCount`).set(state.zonesData[zoneId].staffCount + 3);
+function startLocalSimulation() {
+  // Fallback: generate local data if Firebase is unreachable
+  function simulate() {
+    ZONES.forEach(z => {
+      if (!state.zonesData[z.id]) state.zonesData[z.id] = {};
+      state.zonesData[z.id].density    = Math.floor(Math.random() * 80) + 20;
+      state.zonesData[z.id].waitTime   = Math.floor(Math.random() * 20);
+      state.zonesData[z.id].staffCount = Math.floor(Math.random() * 15) + 2;
+    });
+    updateUIWithFirebaseData();
+    updateCharts();
+    updateMapPolygons();
   }
+  simulate();
+  setInterval(simulate, 5000);
+}
+
+function logEventToFirebase(action, data) {
+  if (!state.db) return;
+  state.db.ref(`/venueiq/events/${Date.now()}`).set({ action, ...data }).catch(() => {});
 }
 
 /* ─────────────────────────────────────────────
-   4. GOOGLE MAPS
+   5. GOOGLE MAPS
    ───────────────────────────────────────────── */
 
 function initGoogleMaps() {
   if (typeof google === 'undefined' || !google.maps) return;
-  const mapElement = document.getElementById('google-map');
-  if(!mapElement) return;
+  const el = document.getElementById('google-map');
+  if (!el) return;
 
-  state.map = new google.maps.Map(mapElement, {
+  state.map = new google.maps.Map(el, {
     zoom: 17,
     center: WEMBLEY_COORDS,
     mapTypeId: 'satellite',
-    disableDefaultUI: true
+    disableDefaultUI: true,
+    zoomControl: true,
   });
 
+  // Colored polygons for each zone
   ZONES.forEach(z => {
     const polygon = new google.maps.Polygon({
-      paths: z.coords,
-      strokeColor: '#FFFFFF', strokeOpacity: 0.8, strokeWeight: 2,
-      fillColor: '#22c55e', fillOpacity: 0.35
+      paths:         z.coords,
+      strokeColor:   '#FFFFFF',
+      strokeOpacity: 0.8,
+      strokeWeight:  2,
+      fillColor:     '#22c55e',
+      fillOpacity:   0.45
     });
     polygon.setMap(state.map);
     state.polygons[z.id] = polygon;
   });
 
-  MARKERS.forEach(m => {
+  // Custom markers
+  MAP_MARKERS.forEach(m => {
     const marker = new google.maps.Marker({
       position: { lat: m.lat, lng: m.lng },
-      map: state.map, title: m.title, icon: m.icon
+      map:   state.map,
+      title: m.title,
+      icon:  m.icon
     });
-    const info = new google.maps.InfoWindow({ content: `<strong>${m.title}</strong><br/>Live updates active` });
-    marker.addListener('click', () => info.open(state.map, marker));
+    const infoWindow = new google.maps.InfoWindow({
+      content: `<div style="color:#111;padding:6px;"><strong>${m.title}</strong><br/><small>Live data: updating every 5s</small></div>`
+    });
+    marker.addListener('click', () => infoWindow.open(state.map, marker));
   });
 }
 
 function updateMapPolygons() {
   if (!state.map) return;
   ZONES.forEach(z => {
-    if (state.zonesData[z.id]) {
-      const d = state.zonesData[z.id].density;
-      const color = d > 70 ? '#ef4444' : d > 40 ? '#f59e0b' : '#22c55e';
-      state.polygons[z.id].setOptions({ fillColor: color });
-    }
+    const zd = state.zonesData[z.id];
+    if (!zd || !state.polygons[z.id]) return;
+    const d     = zd.density;
+    const color = d > 70 ? '#ef4444' : d > 40 ? '#f59e0b' : '#22c55e';
+    state.polygons[z.id].setOptions({ fillColor: color });
   });
 }
 
 /* ─────────────────────────────────────────────
-   5. GOOGLE CHARTS
+   6. GOOGLE CHARTS (Gauge + Bar + Line)
    ───────────────────────────────────────────── */
 
 function initGoogleCharts() {
-  google.charts.load('current', {'packages':['corechart', 'gauge', 'bar', 'line']});
+  if (typeof google === 'undefined' || !google.charts) return;
+  google.charts.load('current', { packages: ['corechart', 'gauge', 'bar', 'line'] });
   google.charts.setOnLoadCallback(() => {
     state.chartsReady = true;
-    state.waitTimesChart = new google.visualization.BarChart(document.getElementById('wait-times-chart'));
-    state.densityLineChart = new google.visualization.LineChart(document.getElementById('density-line-chart'));
-    state.gaugeChart = new google.visualization.Gauge(document.getElementById('gauge-chart'));
+    const gaugeEl = document.getElementById('gauge-chart');
+    const barEl   = document.getElementById('wait-times-chart');
+    const lineEl  = document.getElementById('density-line-chart');
+    if (gaugeEl) state.gaugeChart       = new google.visualization.Gauge(gaugeEl);
+    if (barEl)   state.waitTimesChart   = new google.visualization.BarChart(barEl);
+    if (lineEl)  state.densityLineChart = new google.visualization.LineChart(lineEl);
     updateCharts();
   });
 }
 
+const DARK_OPTS = {
+  backgroundColor:  'transparent',
+  legend:           { position: 'none' },
+  hAxis: { textStyle: { color: '#8bafd4' }, gridlines: { color: '#1e3a5f' }, baselineColor: '#1e3a5f' },
+  vAxis: { textStyle: { color: '#8bafd4' }, gridlines: { color: '#1e3a5f' }, minValue: 0 },
+  animation: { startup: true, duration: 700, easing: 'out' },
+};
+
 function updateCharts() {
   if (!state.chartsReady) return;
-  
-  const zKeys = Object.keys(state.zonesData);
-  if (zKeys.length === 0) return;
+  const keys = Object.keys(state.zonesData);
+  if (keys.length === 0) return;
 
-  // 1. Gauge Chart (Overall Capacity Avg)
-  let totalD = 0;
-  zKeys.forEach(k => totalD += state.zonesData[k].density);
-  const avgDensity = Math.round(totalD / zKeys.length);
-  
-  const gData = google.visualization.arrayToDataTable([ ['Label', 'Value'], ['Capacity', avgDensity] ]);
-  const gOpts = { width: 180, height: 180, redFrom: 90, redTo: 100, yellowFrom:75, yellowTo: 90, minorTicks: 5 };
-  if(document.getElementById('gauge-chart')) state.gaugeChart.draw(gData, gOpts);
+  // 1. Gauge — overall average density
+  const avgDensity = Math.round(keys.reduce((s, k) => s + (state.zonesData[k].density || 0), 0) / keys.length);
+  if (state.gaugeChart) {
+    const gData = google.visualization.arrayToDataTable([['Label', 'Value'], ['Capacity %', avgDensity]]);
+    state.gaugeChart.draw(gData, {
+      width: 180, height: 180,
+      redFrom: 90, redTo: 100,
+      yellowFrom: 70, yellowTo: 90,
+      minorTicks: 5
+    });
+  }
 
-  // 2. Bar Chart (Wait Times)
-  const bRows = [['Zone', 'Wait Time (m)']];
-  zKeys.forEach(k => bRows.push([k, state.zonesData[k].waitTime]));
-  const bData = google.visualization.arrayToDataTable(bRows);
-  const bOpts = {
-    backgroundColor: 'transparent', titleTextStyle: {color: '#8bafd4'}, 
-    legend: {position: 'none'}, hAxis: {textStyle: {color: '#8bafd4'}, gridlines: {color: '#1e3a5f'}},
-    vAxis: {textStyle: {color: '#8bafd4'}}
-  };
-  if(document.getElementById('wait-times-chart')) state.waitTimesChart.draw(bData, bOpts);
+  // 2. Bar — zone wait times
+  if (state.waitTimesChart) {
+    const bRows = [['Zone', 'Wait (min)', { role: 'style' }]];
+    keys.forEach(k => {
+      const w = state.zonesData[k].waitTime || 0;
+      const c = w > 12 ? '#ef4444' : w > 5 ? '#f59e0b' : '#22c55e';
+      bRows.push([state.zonesData[k] ? k : k, w, c]);
+    });
+    state.waitTimesChart.draw(google.visualization.arrayToDataTable(bRows), { ...DARK_OPTS });
+  }
 
-  // 3. Line Chart (Density Trend)
-  state.historyCounter++;
-  state.densityHistory.push([state.historyCounter.toString(), avgDensity]);
-  if(state.densityHistory.length > 11) state.densityHistory.splice(1, 1);
-  const lData = google.visualization.arrayToDataTable(state.densityHistory);
-  if(document.getElementById('density-line-chart')) state.densityLineChart.draw(lData, bOpts);
+  // 3. Line — density trend history (last 10 ticks)
+  if (state.densityLineChart) {
+    state.historyCounter++;
+    state.densityHistory.push([`T${state.historyCounter}`, avgDensity]);
+    if (state.densityHistory.length > 11) state.densityHistory.splice(1, 1);
+    const lData = google.visualization.arrayToDataTable(state.densityHistory);
+    state.densityLineChart.draw(lData, { ...DARK_OPTS, colors: ['#00b8ff'] });
+  }
 }
 
 /* ─────────────────────────────────────────────
-   6. UI SYNCHRONIZATION
+   7. UI SYNC FROM FIREBASE DATA
    ───────────────────────────────────────────── */
 
 function updateUIWithFirebaseData() {
   const d = state.zonesData;
-  // Update Wait Cards if mapping aligns
-  if(DOM.wb.food && d['FoodA']) setWaitCard('food', d['FoodA'].waitTime);
-  if(DOM.wb.rest && d['SouthStand']) setWaitCard('rest', d['SouthStand'].waitTime);
-  if(DOM.wb.exit && d['NorthStand']) setWaitCard('exit', d['NorthStand'].waitTime);
-  
+  if (d['ConcourseA'] && DOM.wb.food)  setWaitCard('food',  d['ConcourseA'].waitTime);
+  if (d['SouthStand'] && DOM.wb.rest)  setWaitCard('rest',  d['SouthStand'].waitTime);
+  if (d['EastWing']   && DOM.wb.snack) setWaitCard('snack', d['EastWing'].waitTime);
+  if (d['NorthStand'] && DOM.wb.exit)  setWaitCard('exit',  d['NorthStand'].waitTime);
   renderZoneTable(d);
 }
 
 function setWaitCard(key, mins) {
   const c = DOM.wb[key];
-  if(!c) return;
+  if (!c || !c.time) return;
   c.time.textContent = mins;
-  const levelClass = mins > 12 ? 'high' : mins > 5 ? 'mid' : 'low';
-  const labelText  = mins > 12 ? 'HIGH' : mins > 5 ? 'MED' : 'LOW';
-  c.fill.className = `wait-card__fill ${levelClass}`;
-  c.fill.style.height = `${Math.min(100, (mins / 20) * 100)}%`;
-  c.badge.className = `wait-card__badge ${levelClass}`;
-  c.badge.textContent = labelText;
+  const level = mins > 12 ? 'high' : mins > 5 ? 'mid' : 'low';
+  const label = mins > 12 ? 'HIGH' : mins > 5 ? 'MED' : 'LOW';
+  c.fill.className       = `wait-card__fill ${level}`;
+  c.fill.style.height    = `${Math.min(100, (mins / 20) * 100)}%`;
+  c.badge.className      = `wait-card__badge ${level}`;
+  c.badge.textContent    = label;
 }
 
 function renderZoneTable(data) {
   if (!DOM.zoneTableBody) return;
   DOM.zoneTableBody.innerHTML = '';
-  ZONES.forEach((z) => {
+  ZONES.forEach(z => {
     const zd = data[z.id];
     if (!zd) return;
-    const l = zd.density > 70 ? 'high' : zd.density > 40 ? 'mid' : 'low';
-    const lText = l.toUpperCase();
-    
+    const lvl   = zd.density > 70 ? 'high' : zd.density > 40 ? 'mid' : 'low';
+    const lText = zd.density > 70 ? 'HIGH' : zd.density > 40 ? 'MED' : 'LOW';
     const tr = document.createElement('tr');
     tr.className = 'zone-row';
     tr.innerHTML = `
       <td><span class="zone-badge">${z.label}</span></td>
-      <td><span class="level-pill ${l}">${lText}</span></td>
+      <td><span class="level-pill ${lvl}">${lText} — ${zd.density}%</span></td>
       <td><span class="wait-number">${zd.waitTime} min</span></td>
       <td><span class="staff-count">${zd.staffCount}</span></td>
-      <td><button class="deploy-btn" data-zone="${z.id}"><span class="material-icons" style="font-size:16px;vertical-align:middle;">security</span> Deploy</button></td>
-    `;
+      <td><button class="deploy-btn" data-zone="${z.id}">
+        <span class="material-icons" style="font-size:15px;vertical-align:middle;">security</span> Deploy
+      </button></td>`;
     DOM.zoneTableBody.appendChild(tr);
   });
 }
 
 function switchView(view) {
-  if (view === 'staff' && state.userRole !== 'staff') {
-    alert("Access Denied: Staff only.");
-    return;
-  }
-  state.currentView = view;
-  const isA = view === 'attendee';
-  DOM.tabAttendee.classList.toggle('active', isA);
-  DOM.tabStaff.classList.toggle('active', !isA);
-  DOM.tabAttendee.setAttribute('aria-selected', isA);
-  DOM.tabStaff.setAttribute('aria-selected', !isA);
-  DOM.viewAttendee.classList.toggle('hidden', !isA);
-  DOM.viewStaff.classList.toggle('hidden', isA);
+  const role = getRole();
+  if (view === 'staff' && role !== 'staff') { alert('Access Denied: Staff only.'); return; }
+  DOM.tabAttendee.classList.toggle('active', view === 'attendee');
+  DOM.tabStaff.classList.toggle('active', view === 'staff');
+  DOM.tabAttendee.setAttribute('aria-selected', view === 'attendee');
+  DOM.tabStaff.setAttribute('aria-selected', view === 'staff');
+  DOM.viewAttendee.classList.toggle('hidden', view !== 'attendee');
+  DOM.viewStaff.classList.toggle('hidden', view !== 'staff');
 }
 
 /* ─────────────────────────────────────────────
-   7. CHATBOT AND EVENT LISTENERS
+   8. VENUEBOT — Input Validation + Chat
    ───────────────────────────────────────────── */
 
+const ALLOWED_CHARS = /^[a-zA-Z0-9 ?!.,'-]+$/;
+
+/** Strips HTML tags and validates the input. */
+function sanitizeInput(raw) {
+  // Remove all HTML/script tags
+  const stripped = raw
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/[<>&"'`]/g, '');
+  return stripped.trim().substring(0, 200);
+}
+
+function validateVbInput(value) {
+  if (!value || value.length === 0) return false;
+  if (value.length > 200) return false;
+  if (/<|>|script|javascript|onerror|onload/i.test(value)) return false;
+  return true;
+}
+
+function onVbInputChange() {
+  const raw   = DOM.venuebotInput ? DOM.venuebotInput.value : '';
+  const valid = validateVbInput(raw);
+  const hasHtml = /<|>|script|javascript/i.test(raw);
+
+  if (hasHtml || (!valid && raw.length > 0)) {
+    DOM.vbInputError.classList.remove('hidden');
+    DOM.venuebotSend.disabled = true;
+  } else {
+    DOM.vbInputError.classList.add('hidden');
+    DOM.venuebotSend.disabled = false;
+  }
+}
+
 function sendVenueBotMessage() {
-  const text = DOM.venuebotInput.value.trim();
-  if (!text) return;
+  const raw = DOM.venuebotInput ? DOM.venuebotInput.value : '';
+  const clean = sanitizeInput(raw);
+  if (!clean) return;
+  if (!validateVbInput(clean)) { DOM.vbInputError.classList.remove('hidden'); return; }
+
   DOM.venuebotInput.value = '';
-  vbAppend('user', text);
+  DOM.vbInputError.classList.add('hidden');
+  DOM.venuebotSend.disabled = false;
+
+  vbAppend('user', clean);
   vbShowTyping();
 
-  // Log chat to Firebase
-  if (state.db) state.db.ref(`/venueiq/chats/${Date.now()}`).set({ uid: state.uid, msg: text, role: state.userRole });
+  // Log to Firebase (no auth needed since rules allow public write for demo)
+  logEventToFirebase('chat', { msg: clean, ts: Date.now() });
 
   setTimeout(() => {
     vbHideTyping();
-    const lText = text.toLowerCase();
+    const lText = clean.toLowerCase();
     const match = VENUEBOT_INTENTS.find(i => i.keywords.some(k => lText.includes(k)));
     vbAppend('bot', match ? match.reply : VB_FALLBACK);
   }, 1000);
 }
 
 function vbAppend(sender, html) {
-  const div = document.createElement('div');
-  div.className = `vb-msg vb-${sender}`;
-  const p = document.createElement('div');
-  p.className = 'vb-bubble';
-  p.innerHTML = html;
-  const t = document.createElement('div');
-  t.className = 'vb-time';
-  t.textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
-  div.appendChild(p); div.appendChild(t);
-  DOM.venuebotMsgs.appendChild(div);
+  const wrap = document.createElement('div');
+  wrap.className = `vb-msg vb-${sender}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'vb-bubble';
+  bubble.innerHTML = html; // intentionally safe: user content is sanitised before reaching here
+  const time = document.createElement('div');
+  time.className = 'vb-time';
+  time.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  wrap.appendChild(bubble);
+  wrap.appendChild(time);
+  DOM.venuebotMsgs.appendChild(wrap);
   DOM.venuebotMsgs.scrollTop = DOM.venuebotMsgs.scrollHeight;
 }
+
 function vbShowTyping() {
-  state.vbTyping = true;
-  const d = document.createElement('div'); d.id='vb-typing-dots'; d.className='vb-typing';
-  d.innerHTML='<span></span><span></span><span></span>';
+  const d = document.createElement('div');
+  d.id = 'vb-typing-dots';
+  d.className = 'vb-typing';
+  d.setAttribute('aria-label', 'VenueBot is typing');
+  d.innerHTML = '<span></span><span></span><span></span>';
   DOM.venuebotMsgs.appendChild(d);
   DOM.venuebotMsgs.scrollTop = DOM.venuebotMsgs.scrollHeight;
 }
 function vbHideTyping() {
   const d = document.getElementById('vb-typing-dots');
   if (d) d.remove();
-  state.vbTyping = false;
 }
 
+function seedVenueBot() {
+  if (state.vbSeeded) return;
+  state.vbSeeded = true;
+  vbAppend('bot', '👋 Hi! I\'m <strong>VenueBot</strong>, your smart stadium assistant.<br>Ask me about food, restrooms, exits, or your seat!');
+}
+
+/* ─────────────────────────────────────────────
+   9. CLOCK
+   ───────────────────────────────────────────── */
+
+function initClock() {
+  const tick = () => {
+    const now = new Date();
+    if (DOM.navClock) DOM.navClock.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    if (DOM.dashTimestamp) DOM.dashTimestamp.textContent = `Last sync: ${now.toLocaleTimeString()}`;
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* ─────────────────────────────────────────────
+   10. EVENT LISTENERS
+   ───────────────────────────────────────────── */
+
 function bindEventListeners() {
-  if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.addEventListener('click', signInWithGoogle);
-  if (DOM.btnSignOut) DOM.btnSignOut.addEventListener('click', signOut);
+  // Role selection
+  if (DOM.btnAttendee) DOM.btnAttendee.addEventListener('click', handleAttendeeLogin);
+  if (DOM.btnStaff)    DOM.btnStaff.addEventListener('click', handleStaffRequest);
+
+  // PIN modal
+  if (DOM.btnPinSubmit) DOM.btnPinSubmit.addEventListener('click', verifyPin);
+  if (DOM.btnPinCancel) DOM.btnPinCancel.addEventListener('click', () => DOM.pinModal.classList.add('hidden'));
+  if (DOM.pinInput) {
+    DOM.pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') verifyPin(); });
+    // Only allow numeric input
+    DOM.pinInput.addEventListener('input', () => {
+      DOM.pinInput.value = DOM.pinInput.value.replace(/\D/g, '').substring(0, 4);
+    });
+  }
+
+  // Session expired modal
+  if (DOM.btnSessionOk) DOM.btnSessionOk.addEventListener('click', () => {
+    DOM.sessionExpired.classList.add('hidden');
+    DOM.loginScreen.classList.remove('hidden', 'fade-out');
+  });
+
+  // Switch role
+  if (DOM.btnSwitchRole) DOM.btnSwitchRole.addEventListener('click', switchRole);
+
+  // View tabs
   if (DOM.tabAttendee) DOM.tabAttendee.addEventListener('click', () => switchView('attendee'));
-  if (DOM.tabStaff) DOM.tabStaff.addEventListener('click', () => switchView('staff'));
-  if (DOM.reqStaffBtn) DOM.reqStaffBtn.addEventListener('click', requestStaffAccess);
+  if (DOM.tabStaff)    DOM.tabStaff.addEventListener('click',    () => switchView('staff'));
 
-  if (DOM.venuebotBtn) DOM.venuebotBtn.addEventListener('click', () => DOM.venuebotPanel.classList.toggle('open'));
+  // Request Staff Access (in attendee view)
+  if (DOM.reqStaffBtn) DOM.reqStaffBtn.addEventListener('click', () => {
+    logEventToFirebase('access_request', { ts: Date.now() });
+    alert('Your request for Staff access has been submitted and logged.');
+  });
+
+  // VenueBot
+  if (DOM.venuebotBtn) DOM.venuebotBtn.addEventListener('click', () => {
+    DOM.venuebotPanel.classList.toggle('open');
+    if (DOM.venuebotPanel.classList.contains('open')) seedVenueBot();
+  });
   if (DOM.venuebotClose) DOM.venuebotClose.addEventListener('click', () => DOM.venuebotPanel.classList.remove('open'));
-  if (DOM.venuebotSend) DOM.venuebotSend.addEventListener('click', sendVenueBotMessage);
-  if (DOM.venuebotInput) DOM.venuebotInput.addEventListener('keypress', e => e.key === 'Enter' && sendVenueBotMessage());
+  if (DOM.venuebotSend)  DOM.venuebotSend.addEventListener('click', sendVenueBotMessage);
+  if (DOM.venuebotInput) {
+    DOM.venuebotInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendVenueBotMessage(); });
+    DOM.venuebotInput.addEventListener('input', onVbInputChange);
+  }
 
+  // Deploy staff buttons (table delegation)
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('.deploy-btn');
-    if (btn) deployStaffLog(btn.dataset.zone);
+    if (btn) {
+      logEventToFirebase('deploy_staff', { zone: btn.dataset.zone, ts: Date.now() });
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-icons" style="font-size:15px;vertical-align:middle;">check_circle</span> Deployed';
+      btn.classList.add('deployed');
+    }
   });
 }
 
-function initClock() {
-  setInterval(() => {
-    const d = new Date();
-    if(DOM.navClock) DOM.navClock.textContent = d.toLocaleTimeString('en-US', {hour12: false});
-    if(DOM.dashTimestamp) DOM.dashTimestamp.textContent = `Last sync: ${d.toLocaleTimeString()}`;
-  }, 1000);
-}
+/* ─────────────────────────────────────────────
+   11. INIT
+   ───────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheDOMElements();
   bindEventListeners();
   initClock();
   initFirebase();
-  
+
+  // Restore session if already active
+  const savedRole = getRole();
+
   if (DOM.splash) {
     setTimeout(() => {
       DOM.splash.classList.add('hidden');
-      if (!state.uid && DOM.loginScreen) {
+      if (savedRole) {
+        enterApp(savedRole);
+      } else {
         DOM.loginScreen.classList.remove('hidden');
       }
     }, 2000);

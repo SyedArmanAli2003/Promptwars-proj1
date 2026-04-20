@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="VenueIQ — Smart Stadium Experience: Real-time crowd intelligence for attendees and staff at large-scale sporting venues." />
   <title>VenueIQ — Smart Stadium Experience</title>
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.google.com; script-src 'self' 'unsafe-inline' https://*.googleapis.com https://*.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -14,10 +19,9 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBkI7ryr8dXujHjOs9Q1O1ALq_gDIpwVlI&libraries=visualization"></script>
   <!-- Google Charts -->
   <script src="https://www.gstatic.com/charts/loader.js"></script>
-  <!-- Firebase SDKs (compat v10) -->
+  <!-- Firebase SDKs (Database only — Auth is NOT used) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -44,17 +48,44 @@
       </div>
       <p class="login-prompt">Choose your role to enter</p>
       <div class="login-roles" role="group" aria-label="Available roles">
-        <button class="login-google-btn" id="btn-google-login" aria-label="Sign in with Google">
-          <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          <span class="google-btn-text">Sign in with Google</span>
+        <button class="login-role-btn" id="btn-role-attendee" data-role="attendee"
+                aria-label="Enter as Attendee — view the stadium map, wait times and exits">
+          <span class="role-emoji material-icons" aria-hidden="true">stadium</span>
+          <div class="role-info">
+            <span class="role-title">Attendee</span>
+            <span class="role-desc">View map, find food &amp; exits</span>
+          </div>
+          <span class="role-arrow material-icons" aria-hidden="true">arrow_forward</span>
+        </button>
+        <button class="login-role-btn login-role-btn--staff" id="btn-role-staff" data-role="staff"
+                aria-label="Enter as Staff Admin — monitor crowd levels and deploy staff">
+          <span class="role-emoji material-icons" aria-hidden="true">admin_panel_settings</span>
+          <div class="role-info">
+            <span class="role-title">Staff Admin</span>
+            <span class="role-desc">Monitor crowd, deploy staff</span>
+          </div>
+          <span class="role-arrow material-icons" aria-hidden="true">arrow_forward</span>
         </button>
       </div>
-      <p class="login-note">VenueIQ v1.0 · Google Prompt Wars Hackathon</p>
+      <p class="login-note">VenueIQ v2.0 · Google Prompt Wars Hackathon</p>
+    </div>
+  </div>
+
+  <!-- ===== PIN MODAL ===== -->
+  <div id="pin-modal" class="pin-modal hidden" role="dialog" aria-modal="true" aria-label="Staff PIN verification">
+    <div class="pin-card">
+      <span class="material-icons pin-icon" aria-hidden="true">lock</span>
+      <h2 class="pin-title">Staff Verification</h2>
+      <p class="pin-subtitle">Enter your 4-digit Staff PIN to continue</p>
+      <input type="password" id="pin-input" class="pin-input" maxlength="4"
+             placeholder="• • • •" aria-label="4-digit Staff PIN" inputmode="numeric" />
+      <p class="pin-error hidden" id="pin-error" role="alert">Access denied. Invalid PIN.</p>
+      <div class="pin-actions">
+        <button class="btn-secondary" id="btn-pin-cancel">Cancel</button>
+        <button class="btn-primary" id="btn-pin-submit">
+          <span class="material-icons">verified_user</span> Verify
+        </button>
+      </div>
     </div>
   </div>
 
@@ -79,11 +110,13 @@
         </button>
       </nav>
       <div class="topnav__status">
-        <div class="user-profile-nav" id="user-profile-nav" style="display: none;">
-          <img src="" alt="Profile" id="nav-user-photo" class="nav-user-photo">
-          <span id="nav-user-name" class="nav-user-name"></span>
-        </div>
-        <button id="btn-sign-out" class="btn-sign-out" aria-label="Sign Out">Sign Out</button>
+        <span class="secure-badge" aria-label="Secure connection active">
+          <span class="material-icons" style="color:#22c55e;font-size:14px;">lock</span>
+          <span>Secure Connection</span>
+        </span>
+        <button id="btn-switch-role" class="btn-switch-role" aria-label="Switch between Attendee and Staff roles">
+          <span class="material-icons">switch_account</span> Switch Role
+        </button>
         <span class="live-badge" aria-label="Live data"><span class="material-icons" style="font-size:12px">sensors</span> LIVE</span>
         <span id="nav-clock" class="nav-clock" aria-live="off">––:––:––</span>
       </div>
@@ -380,6 +413,12 @@
         <span>Built for <strong>Google Prompt Wars Hackathon</strong></span>
         <span class="footer-sep" aria-hidden="true">—</span>
         <span>Improving fan experience through real-time crowd intelligence</span>
+        <span class="footer-sep" aria-hidden="true">—</span>
+        <span class="firebase-badge" aria-label="Data secured by Firebase Realtime Database">
+          <span style="color:#ff6d00;font-size:16px;">🔥</span>
+          <span style="color:#ff6d00;font-weight:600;">Firebase</span>
+          <span style="color:var(--text-secondary);">Data secured by Firebase Realtime Database</span>
+        </span>
       </div>
     </footer>
 
@@ -419,8 +458,60 @@
       </div>
     </div>
 
+    </div>
+
   </div><!-- /#main-app -->
 
+  <!-- VenueBot is outside main-app for positioning -->
+  <button class="venuebot-btn" id="venuebot-btn" aria-label="Open VenueBot AI assistant" title="Ask VenueBot">
+    <span class="venuebot-icon-chat material-icons" aria-hidden="true">smart_toy</span>
+    <span class="venuebot-icon-close hidden material-icons" aria-hidden="true">close</span>
+    <span class="venuebot-badge" id="venuebot-badge" aria-label="1 unread message">1</span>
+  </button>
+
+  <div class="venuebot-panel" id="venuebot-panel" role="dialog" aria-label="VenueBot assistant" aria-modal="true">
+    <div class="venuebot-header">
+      <div class="venuebot-header-left">
+        <div class="venuebot-avatar material-icons" aria-hidden="true">smart_toy</div>
+        <div class="venuebot-identity">
+          <span class="venuebot-name">VenueBot</span>
+          <span class="venuebot-status">
+            <span class="venuebot-online-dot" aria-hidden="true"></span>AI Assistant &middot; Online
+          </span>
+        </div>
+      </div>
+      <button class="venuebot-close-btn" id="venuebot-close-btn" aria-label="Close VenueBot chat panel">
+        <span class="material-icons" aria-hidden="true">close</span>
+      </button>
+    </div>
+    <div class="venuebot-messages" id="venuebot-messages" role="log" aria-live="polite" aria-label="Chat messages">
+      <!-- Populated by JS on first open -->
+    </div>
+    <div class="venuebot-composer">
+      <input type="text" id="venuebot-input" class="venuebot-input"
+             placeholder="Ask about food, exits, restrooms…"
+             aria-label="Type your message to VenueBot"
+             maxlength="200" autocomplete="off" />
+      <p class="vb-input-error hidden" id="vb-input-error">Invalid input — please use plain text only</p>
+      <button class="venuebot-send-btn" id="venuebot-send-btn" aria-label="Send message to VenueBot">
+        <span class="material-icons" aria-hidden="true">send</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Session Expired Modal -->
+  <div id="session-expired-modal" class="pin-modal hidden" role="alertdialog" aria-label="Session expired">
+    <div class="pin-card">
+      <span class="material-icons pin-icon" style="color:#f59e0b" aria-hidden="true">timer_off</span>
+      <h2 class="pin-title">Session Expired</h2>
+      <p class="pin-subtitle">Session expired for your security. Please select your role again.</p>
+      <button class="btn-primary" id="btn-session-ok">
+        <span class="material-icons">login</span> Select Role
+      </button>
+    </div>
+  </div>
+
+  <script src="firebaseConfig.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

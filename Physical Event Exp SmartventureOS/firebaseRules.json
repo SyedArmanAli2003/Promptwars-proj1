@@ -1,0 +1,9 @@
+{
+  "_comment": "VenueIQ — Firebase Realtime Database Security Rules",
+  "_note": "These are open DEMO rules allowing public read/write for hackathon purposes.",
+  "_production_warning": "In production, replace '.read' and '.write' with authenticated UID checks or custom token validation. Example: 'auth != null'",
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
