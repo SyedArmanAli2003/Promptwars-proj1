@@ -4,19 +4,13 @@
    ============================================= */
 
 /* === TOKENS === */
+/* === TOKENS === */
 :root {
-  --navy-950: #020c1b;
-  --navy-900: #0a1628;
-  --navy-800: #0d1f3c;
-  --navy-700: #0f2346;
-  --navy-600: #162d55;
-  --navy-500: #1e3a5f;
-
+  /* Global Brand Colors (unchanged across themes) */
   --blue-400: #00b8ff;
   --blue-500: #0080ff;
   --blue-600: #0060cc;
   --cyan: #00e5ff;
-
   --green-400: #00e676;
   --green-500: #00c853;
   --yellow-400: #ffd740;
@@ -24,29 +18,62 @@
   --red-400: #ff5252;
   --red-500: #f44336;
 
-  --text-primary: #e8f0fe;
-  --text-secondary: #8bafd4;
-  --text-muted: #4a6fa5;
-
-  --card-bg: rgba(13, 31, 60, 0.85);
-  --card-border: rgba(0, 184, 255, 0.12);
-  --card-glow: rgba(0, 184, 255, 0.08);
-  --glass-bg: rgba(10, 22, 40, 0.7);
-
+  /* Global Settings */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
-
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 184, 255, 0.1);
-  --shadow-glow: 0 0 20px rgba(0, 184, 255, 0.2);
-
   --transition-fast: 0.15s ease;
   --transition-med: 0.3s ease;
   --transition-slow: 0.5s ease;
-
   --font: 'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  
+  /* Fallbacks - Default to Dark */
+  --navy-950: #020c1b;
+  --navy-900: #0a1628;
+  --navy-800: #0d1f3c;
+  --navy-700: #0f2346;
+  --navy-600: #162d55;
+  --navy-500: #1e3a5f;
+}
+
+[data-theme="dark"], :root {
+  --bg-primary: #020c1b;
+  --bg-secondary: #0a1628;
+  --bg-glass: rgba(10, 22, 40, 0.95);
+  --text-primary: #e8f0fe;
+  --text-secondary: #8bafd4;
+  --text-muted: #4a6fa5;
+  --card-bg: rgba(13, 31, 60, 0.85);
+  --card-border: rgba(0, 184, 255, 0.12);
+  --card-glow: rgba(0, 184, 255, 0.08);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 184, 255, 0.1);
+  --shadow-glow: 0 0 20px rgba(0, 184, 255, 0.2);
+  --bg-image: radial-gradient(ellipse 60% 30% at 50% 0%, rgba(0, 128, 255, 0.07) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 20% at 80% 100%, rgba(0, 229, 255, 0.04) 0%, transparent 60%);
+  --tab-active-bg: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+  --tab-active-text: white;
+  --tab-hover-bg: var(--bg-glass);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-glass: rgba(255, 255, 255, 0.95);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(148, 163, 184, 0.3);
+  --card-glow: rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 15px rgba(0, 128, 255, 0.1);
+  --bg-image: radial-gradient(ellipse 60% 30% at 50% 0%, rgba(0, 128, 255, 0.04) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 20% at 80% 100%, rgba(0, 229, 255, 0.02) 0%, transparent 60%);
+  --tab-active-bg: linear-gradient(135deg, var(--blue-400), var(--blue-500));
+  --tab-active-text: white;
+  --tab-hover-bg: #e2e8f0;
 }
 
 /* === RESET === */
@@ -54,13 +81,11 @@
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--font);
-  background: var(--navy-950);
+  background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  background-image:
-    radial-gradient(ellipse 60% 30% at 50% 0%, rgba(0, 128, 255, 0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 20% at 80% 100%, rgba(0, 229, 255, 0.04) 0%, transparent 60%);
+  background-image: var(--bg-image);
 }
 
 h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
@@ -75,8 +100,8 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 
 /* === SCROLLBAR === */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--navy-900); }
-::-webkit-scrollbar-thumb { background: var(--navy-500); border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--bg-glass); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--blue-500); }
 
 /* =============================================
@@ -116,7 +141,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
    ============================================= */
 #splash-screen {
   position: fixed; inset: 0; z-index: 9999;
-  background: var(--navy-950);
+  background: var(--bg-primary);
   background-image:
     radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0, 128, 255, 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 40% 30% at 80% 110%, rgba(0, 229, 255, 0.08) 0%, transparent 60%);
@@ -151,7 +176,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
    ============================================= */
 .login-screen {
   position: fixed; inset: 0; z-index: 9998;
-  background: var(--navy-950);
+  background: var(--bg-primary);
   background-image:
     radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0, 128, 255, 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 40% 30% at 80% 110%, rgba(0, 229, 255, 0.08) 0%, transparent 60%);
@@ -295,7 +320,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 .app-footer { padding: 18px 24px; border-top: 1px solid var(--card-border); background: rgba(6,15,30,0.85); text-align: center; }
 .footer-content { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 2px; font-size: 12px; color: var(--text-muted); line-height: 1.9; }
 .footer-logo { color: var(--blue-400); font-weight: 600; }
-.footer-sep  { color: var(--navy-500); margin: 0 8px; }
+.footer-sep  { color: var(--bg-glass); margin: 0 8px; }
 .app-footer strong { color: var(--cyan); font-weight: 600; }
 
 
@@ -361,7 +386,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 .topnav__tabs {
   display: flex;
   gap: 4px;
-  background: var(--navy-900);
+  background: var(--bg-primary);
   padding: 4px;
   border-radius: 10px;
   border: 1px solid var(--card-border);
@@ -385,7 +410,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 }
 
 .tab-btn:hover:not(.active) {
-  background: var(--navy-600);
+  background: var(--bg-glass);
   color: var(--text-primary);
 }
 
@@ -471,9 +496,9 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 .content-wrapper {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 28px 24px 40px;
+  padding: 36px 32px 48px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -565,8 +590,8 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   margin: 0 auto;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--navy-500);
-  background: var(--navy-900);
+  border: 1px solid var(--bg-glass);
+  background: var(--bg-primary);
   position: relative; /* Needed for tooltip absolute positioning */
 }
 
@@ -672,7 +697,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 }
 
 .btn-secondary:hover {
-  background: var(--navy-700);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   border-color: var(--blue-400);
 }
@@ -795,7 +820,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 /* Vertical bar */
 .wait-card__bar {
   width: 6px;
-  background: var(--navy-700);
+  background: var(--bg-secondary);
   border-radius: 3px;
   height: 60px;
   margin-top: 22px; /* Push below badge */
@@ -954,7 +979,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 .dashboard-body {
   display: grid;
   grid-template-columns: 1fr 340px;
-  gap: 24px;
+  gap: 32px;
   align-items: start;
 }
 
@@ -975,7 +1000,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 .table-wrapper {
   overflow-x: auto;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--navy-500);
+  border: 1px solid var(--bg-glass);
 }
 
 .zone-table {
@@ -985,7 +1010,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 }
 
 .zone-table thead {
-  background: var(--navy-700);
+  background: var(--bg-secondary);
 }
 
 .zone-table th {
@@ -997,7 +1022,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   white-space: nowrap;
-  border-bottom: 1px solid var(--navy-500);
+  border-bottom: 1px solid var(--bg-glass);
 }
 
 .zone-table tbody tr {
@@ -1222,7 +1247,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--navy-950);
+  border: 2px solid var(--bg-primary);
   animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
 }
@@ -1356,7 +1381,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 
 .venuebot-messages::-webkit-scrollbar { width: 4px; }
 .venuebot-messages::-webkit-scrollbar-track { background: transparent; }
-.venuebot-messages::-webkit-scrollbar-thumb { background: var(--navy-500); border-radius: 2px; }
+.venuebot-messages::-webkit-scrollbar-thumb { background: var(--bg-glass); border-radius: 2px; }
 
 /* ── Message bubbles ── */
 .vb-msg {
@@ -1532,7 +1557,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: var(--navy-950);
+  background: var(--bg-primary);
   background-image:
     radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0, 128, 255, 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 40% 30% at 80% 110%, rgba(0, 229, 255, 0.08) 0%, transparent 60%);
@@ -1697,7 +1722,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 }
 
 .footer-sep {
-  color: var(--navy-500);
+  color: var(--bg-glass);
   margin: 0 8px;
 }
 
@@ -1775,7 +1800,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   position: fixed;
   inset: 0;
   z-index: 9998;
-  background: var(--navy-950);
+  background: var(--bg-primary);
   background-image:
     radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0, 128, 255, 0.18) 0%, transparent 70%),
     radial-gradient(ellipse 40% 30% at 80% 110%, rgba(0, 229, 255, 0.08) 0%, transparent 60%);
@@ -1922,7 +1947,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
    GOOGLE CHARTS — ANALYTICS SECTION
    ============================================= */
 .charts-section {
-  padding: 0 24px 24px;
+  padding: 0 32px 32px;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -1930,7 +1955,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 28px;
 }
 
 .chart-card {
@@ -2054,7 +2079,7 @@ h1, h2, h3, h4, h5, h6, .metric-card__value, .wait-card__minutes {
   font-size: 28px;
   letter-spacing: 12px;
   text-align: center;
-  background: var(--navy-800);
+  background: var(--bg-secondary);
   border: 2px solid var(--card-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);

@@ -19,9 +19,10 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBkI7ryr8dXujHjOs9Q1O1ALq_gDIpwVlI&libraries=visualization"></script>
   <!-- Google Charts -->
   <script src="https://www.gstatic.com/charts/loader.js"></script>
-  <!-- Firebase SDKs (Database only — Auth is NOT used) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -39,17 +40,31 @@
   </div>
 
   <!-- ===== LOGIN / ROLE SELECTION ===== -->
-  <div id="login-screen" class="login-screen hidden" role="dialog" aria-modal="true" aria-label="Role selection">
+  <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-label="Role selection">
     <div class="login-card">
       <div class="login-header">
         <span class="login-icon" aria-hidden="true">&#9673;</span>
         <h1 class="login-title">VenueIQ</h1>
         <p class="login-tagline">Smart Stadium Experience</p>
       </div>
-      <p class="login-prompt">Choose your role to enter</p>
+      <p class="login-prompt">Sign in to access live venue analytics</p>
       <div class="login-roles" role="group" aria-label="Available roles">
-        <button class="login-role-btn" id="btn-role-attendee" data-role="attendee"
-                aria-label="Enter as Attendee — view the stadium map, wait times and exits">
+        <button class="login-google-btn" id="btn-google-signin" aria-label="Sign in with Google">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="google-logo" />
+          <span class="google-btn-text">Sign in with Google</span>
+        </button>
+      </div>
+      <p class="login-note">VenueIQ v2.0 · Google Prompt Wars Hackathon</p>
+    </div>
+  </div>
+
+  <!-- ===== JUDGE DEBUG ROLE SELECTION MODAL ===== -->
+  <div id="role-select-modal" class="pin-modal hidden" role="dialog" aria-modal="true" aria-label="Select Role">
+    <div class="pin-card" style="max-width: 460px;">
+      <h2 class="pin-title">Select Your Role</h2>
+      <p class="pin-subtitle">Debug Bypass: Choose how you want to enter.</p>
+      <div class="login-roles" role="group">
+        <button class="login-role-btn" id="btn-role-attendee" data-role="attendee">
           <span class="role-emoji material-icons" aria-hidden="true">stadium</span>
           <div class="role-info">
             <span class="role-title">Attendee</span>
@@ -57,8 +72,7 @@
           </div>
           <span class="role-arrow material-icons" aria-hidden="true">arrow_forward</span>
         </button>
-        <button class="login-role-btn login-role-btn--staff" id="btn-role-staff" data-role="staff"
-                aria-label="Enter as Staff Admin — monitor crowd levels and deploy staff">
+        <button class="login-role-btn login-role-btn--staff" id="btn-role-staff" data-role="staff">
           <span class="role-emoji material-icons" aria-hidden="true">admin_panel_settings</span>
           <div class="role-info">
             <span class="role-title">Staff Admin</span>
@@ -67,7 +81,6 @@
           <span class="role-arrow material-icons" aria-hidden="true">arrow_forward</span>
         </button>
       </div>
-      <p class="login-note">VenueIQ v2.0 · Google Prompt Wars Hackathon</p>
     </div>
   </div>
 
@@ -110,6 +123,9 @@
         </button>
       </nav>
       <div class="topnav__status">
+        <button id="btn-theme-toggle" class="btn-switch-role" aria-label="Toggle Light/Dark Theme" style="margin-right: 8px;">
+          <span class="material-icons" id="theme-icon">light_mode</span>
+        </button>
         <span class="secure-badge" aria-label="Secure connection active">
           <span class="material-icons" style="color:#22c55e;font-size:14px;">lock</span>
           <span>Secure Connection</span>

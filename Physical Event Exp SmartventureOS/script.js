@@ -83,14 +83,14 @@ const DOM = {};
 function cacheDOMElements() {
   DOM.splash           = document.getElementById('splash-screen');
   DOM.loginScreen      = document.getElementById('login-screen');
+  DOM.roleModal        = document.getElementById('role-select-modal');
   DOM.mainApp          = document.getElementById('main-app');
+  DOM.btnGoogleSignin  = document.getElementById('btn-google-signin');
   DOM.btnAttendee      = document.getElementById('btn-role-attendee');
   DOM.btnStaff         = document.getElementById('btn-role-staff');
-  DOM.pinModal         = document.getElementById('pin-modal');
-  DOM.pinInput         = document.getElementById('pin-input');
-  DOM.pinError         = document.getElementById('pin-error');
-  DOM.btnPinSubmit     = document.getElementById('btn-pin-submit');
-  DOM.btnPinCancel     = document.getElementById('btn-pin-cancel');
+  DOM.btnThemeToggle   = document.getElementById('btn-theme-toggle');
+  DOM.themeIcon        = document.getElementById('theme-icon');
+  
   DOM.sessionExpired   = document.getElementById('session-expired-modal');
   DOM.btnSessionOk     = document.getElementById('btn-session-ok');
   DOM.btnSwitchRole    = document.getElementById('btn-switch-role');
@@ -155,45 +155,47 @@ function handleAttendeeLogin() {
 }
 
 function handleStaffRequest() {
-  DOM.pinInput.value = '';
-  DOM.pinError.classList.add('hidden');
-  DOM.pinModal.classList.remove('hidden');
-  setTimeout(() => DOM.pinInput.focus(), 100);
+  // Hackathon Debug Bypass: Instant Entry
+  setRole('staff');
+  enterApp('staff');
 }
 
 function verifyPin() {
-  const pin = DOM.pinInput.value.trim();
-  if (pin === STAFF_PIN) {
-    DOM.pinModal.classList.add('hidden');
-    setRole('staff');
-    enterApp('staff');
-  } else {
-    DOM.pinError.classList.remove('hidden');
-    DOM.pinInput.value = '';
-    DOM.pinInput.focus();
-    // Shake animation on pin card
-    const card = DOM.pinModal.querySelector('.pin-card');
-    card.style.animation = 'none';
-    requestAnimationFrame(() => { card.style.animation = 'shake 0.4s ease'; });
-  }
+  // PIN system disabled for Hackathon
+}
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('venueiq_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  if (DOM.themeIcon) DOM.themeIcon.textContent = savedTheme === 'light' ? 'dark_mode' : 'light_mode';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('venueiq_theme', next);
+  if (DOM.themeIcon) DOM.themeIcon.textContent = next === 'light' ? 'dark_mode' : 'light_mode';
 }
 
 function enterApp(role) {
-  DOM.loginScreen.classList.add('fade-out');
-  setTimeout(() => {
-    DOM.loginScreen.classList.add('hidden');
-    DOM.mainApp.classList.remove('hidden');
-    DOM.tabStaff.classList.toggle('hidden', role !== 'staff');
-    switchView(role === 'staff' ? 'staff' : 'attendee');
-    if (!state.map) initGoogleMaps();
-    if (!state.chartsReady) initGoogleCharts();
-  }, 400);
+  DOM.roleModal.classList.add('hidden');
+  DOM.loginScreen.classList.add('hidden');
+  DOM.mainApp.classList.remove('hidden');
+  DOM.tabStaff.classList.toggle('hidden', role !== 'staff');
+  switchView(role === 'staff' ? 'staff' : 'attendee');
+  if (!state.map) initGoogleMaps();
+  if (!state.chartsReady) initGoogleCharts();
 }
 
 function switchRole() {
   clearRole();
   DOM.mainApp.classList.add('hidden');
-  DOM.loginScreen.classList.remove('hidden', 'fade-out');
+  if (firebase.auth().currentUser) {
+    DOM.roleModal.classList.remove('hidden');
+  } else {
+    DOM.loginScreen.classList.remove('hidden', 'fade-out');
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -211,7 +213,22 @@ function initFirebase() {
     state.db = firebase.database();
     console.info('VenueIQ: Firebase Realtime Database connected.');
 
-    // Realtime listener — UI updates whenever DB changes
+    // Auth State
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        state.currentUser = user;
+        DOM.loginScreen.classList.add('hidden');
+        DOM.roleModal.classList.remove('hidden'); 
+      } else {
+        clearRole();
+        state.currentUser = null;
+        DOM.loginScreen.classList.remove('hidden', 'fade-out');
+        DOM.roleModal.classList.add('hidden');
+        DOM.mainApp.classList.add('hidden');
+      }
+    });
+
+    // Realtime listener
     state.db.ref('/venueiq/zones').on('value', snap => {
       const data = snap.val();
       if (data) {
@@ -274,11 +291,15 @@ function initGoogleMaps() {
   if (!el) return;
 
   state.map = new google.maps.Map(el, {
-    zoom: 17,
+    zoom: 16.5,
     center: WEMBLEY_COORDS,
     mapTypeId: 'satellite',
-    disableDefaultUI: true,
-    zoomControl: true,
+    disableDefaultUI: true, // simplified prototype look
+    tilt: 0,
+    styles: [
+      { featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] } // No overlay labels
+    ],
+    backgroundColor: '#0a1628'
   });
 
   // Colored polygons for each zone
@@ -289,7 +310,7 @@ function initGoogleMaps() {
       strokeOpacity: 0.8,
       strokeWeight:  2,
       fillColor:     '#22c55e',
-      fillOpacity:   0.45
+      fillOpacity:   0.65
     });
     polygon.setMap(state.map);
     state.polygons[z.id] = polygon;
@@ -559,24 +580,25 @@ function initClock() {
    ───────────────────────────────────────────── */
 
 function bindEventListeners() {
+  // Auth
+  if (DOM.btnGoogleSignin) {
+    DOM.btnGoogleSignin.addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider).catch(err => console.error(err));
+    });
+  }
+
+  // Theme
+  if (DOM.btnThemeToggle) DOM.btnThemeToggle.addEventListener('click', toggleTheme);
+
   // Role selection
   if (DOM.btnAttendee) DOM.btnAttendee.addEventListener('click', handleAttendeeLogin);
   if (DOM.btnStaff)    DOM.btnStaff.addEventListener('click', handleStaffRequest);
 
-  // PIN modal
-  if (DOM.btnPinSubmit) DOM.btnPinSubmit.addEventListener('click', verifyPin);
-  if (DOM.btnPinCancel) DOM.btnPinCancel.addEventListener('click', () => DOM.pinModal.classList.add('hidden'));
-  if (DOM.pinInput) {
-    DOM.pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') verifyPin(); });
-    // Only allow numeric input
-    DOM.pinInput.addEventListener('input', () => {
-      DOM.pinInput.value = DOM.pinInput.value.replace(/\D/g, '').substring(0, 4);
-    });
-  }
-
   // Session expired modal
   if (DOM.btnSessionOk) DOM.btnSessionOk.addEventListener('click', () => {
     DOM.sessionExpired.classList.add('hidden');
+    firebase.auth().signOut();
     DOM.loginScreen.classList.remove('hidden', 'fade-out');
   });
 
@@ -623,19 +645,21 @@ function bindEventListeners() {
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheDOMElements();
+  initTheme();
   bindEventListeners();
   initClock();
   initFirebase();
 
-  // Restore session if already active
+  // Restore session if already active (handled primarily by onAuthStateChanged now, but keep fallback)
   const savedRole = getRole();
 
   if (DOM.splash) {
     setTimeout(() => {
       DOM.splash.classList.add('hidden');
-      if (savedRole) {
+      if (savedRole && state.currentUser) {
         enterApp(savedRole);
-      } else {
+      } else if (!state.currentUser) {
+        // Only show login if Firebase Auth hasn't already verified them
         DOM.loginScreen.classList.remove('hidden');
       }
     }, 2000);
