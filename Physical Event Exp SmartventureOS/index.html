@@ -7,8 +7,11 @@
   <title>VenueIQ — Smart Stadium Experience</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <!-- Google Maps -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBkI7ryr8dXujHjOs9Q1O1ALq_gDIpwVlI&libraries=visualization"></script>
   <!-- Google Charts -->
   <script src="https://www.gstatic.com/charts/loader.js"></script>
   <!-- Firebase SDKs (compat v10) -->
@@ -41,23 +44,14 @@
       </div>
       <p class="login-prompt">Choose your role to enter</p>
       <div class="login-roles" role="group" aria-label="Available roles">
-        <button class="login-role-btn" id="btn-role-attendee" data-role="attendee"
-                aria-label="Enter as Attendee — view the stadium map, wait times and exits">
-          <span class="role-emoji" aria-hidden="true">🎟️</span>
-          <div class="role-info">
-            <span class="role-title">Attendee</span>
-            <span class="role-desc">View map, find food &amp; exits</span>
-          </div>
-          <span class="role-arrow" aria-hidden="true">&#8594;</span>
-        </button>
-        <button class="login-role-btn login-role-btn--staff" id="btn-role-staff" data-role="staff"
-                aria-label="Enter as Staff Admin — monitor crowd levels and deploy staff">
-          <span class="role-emoji" aria-hidden="true">🛡️</span>
-          <div class="role-info">
-            <span class="role-title">Staff Admin</span>
-            <span class="role-desc">Monitor crowd, deploy staff</span>
-          </div>
-          <span class="role-arrow" aria-hidden="true">&#8594;</span>
+        <button class="login-google-btn" id="btn-google-login" aria-label="Sign in with Google">
+          <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span class="google-btn-text">Sign in with Google</span>
         </button>
       </div>
       <p class="login-note">VenueIQ v1.0 · Google Prompt Wars Hackathon</p>
@@ -75,24 +69,22 @@
         <span class="topnav__tagline">Smart Stadium Experience</span>
       </div>
       <nav class="topnav__tabs" role="tablist" aria-label="Main navigation">
-        <button class="tab-btn active" id="tab-attendee" role="tab"
-                aria-selected="true" aria-controls="view-attendee">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-          </svg>
+        <button class="tab-btn active" id="tab-attendee" role="tab" aria-selected="true" aria-controls="view-attendee">
+          <span class="material-icons" aria-hidden="true">stadium</span>
           <span>Attendee View</span>
         </button>
-        <button class="tab-btn" id="tab-staff" role="tab"
-                aria-selected="false" aria-controls="view-staff">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-          </svg>
+        <button class="tab-btn hidden" id="tab-staff" role="tab" aria-selected="false" aria-controls="view-staff">
+          <span class="material-icons" aria-hidden="true">dashboard</span>
           <span>Staff Dashboard</span>
         </button>
       </nav>
       <div class="topnav__status">
+        <div class="user-profile-nav" id="user-profile-nav" style="display: none;">
+          <img src="" alt="Profile" id="nav-user-photo" class="nav-user-photo">
+          <span id="nav-user-name" class="nav-user-name"></span>
+        </div>
         <button id="btn-sign-out" class="btn-sign-out" aria-label="Sign Out">Sign Out</button>
-        <span class="live-badge" aria-label="Live data">LIVE</span>
+        <span class="live-badge" aria-label="Live data"><span class="material-icons" style="font-size:12px">sensors</span> LIVE</span>
         <span id="nav-clock" class="nav-clock" aria-live="off">––:––:––</span>
       </div>
     </header>
@@ -100,9 +92,9 @@
     <!-- ===== ATTENDEE VIEW ===== -->
     <main id="view-attendee" class="view active" role="tabpanel" aria-labelledby="tab-attendee">
 
-      <!-- Alert Banner -->
+        <!-- Alert Banner -->
       <div class="alert-banner" id="alert-banner" role="alert" aria-live="polite" aria-atomic="true">
-        <span class="alert-banner__icon" aria-hidden="true">⚡</span>
+        <span class="alert-banner__icon material-icons" aria-hidden="true">warning</span>
         <span class="alert-banner__text" id="alert-text">Gate 4 is congested — use Gate 6 instead</span>
         <div class="alert-banner__dots" id="alert-dots" aria-hidden="true">
           <span class="dot active"></span>
@@ -112,49 +104,33 @@
       </div>
 
       <div class="content-wrapper">
-
-        <!-- Stadium Map -->
-        <section class="map-section" aria-label="Stadium seating map with live crowd density">
-          <div class="section-header">
-            <h1 class="section-title">Stadium Live Map</h1>
-            <div class="legend" role="list" aria-label="Map color legend">
-              <span class="legend-item" role="listitem">
-                <span class="legend-dot low" aria-hidden="true"></span>Low (0–40%)
-              </span>
-              <span class="legend-item" role="listitem">
-                <span class="legend-dot mid" aria-hidden="true"></span>Medium (40–70%)
-              </span>
-              <span class="legend-item" role="listitem">
-                <span class="legend-dot high" aria-hidden="true"></span>High (70–100%)
-              </span>
+        <div class="attendee-layout">
+          <!-- Stadium Map Column -->
+          <section class="map-section" aria-label="Stadium seating map with live crowd density">
+            <div class="section-header">
+              <h1 class="section-title">Stadium Live Map</h1>
+              <button class="btn-secondary btn-request-staff" id="btn-request-staff">
+                <span class="material-icons">admin_panel_settings</span> Request Staff Access
+              </button>
             </div>
-          </div>
+            
+            <div class="capacity-gauge-container">
+              <div id="gauge-chart" class="gauge-chart"></div>
+            </div>
 
-          <div class="stadium-container">
-            <!-- Heatmap SVG — populated by initHeatmap() in script.js -->
-            <svg id="stadium-svg" class="stadium-svg" viewBox="0 0 800 560"
-                 xmlns="http://www.w3.org/2000/svg" role="img"
-                 aria-label="Stadium crowd-density heatmap showing sections 101 to 140 with colour-coded occupancy levels"></svg>
-            <!-- Floating tooltip -->
-            <div id="section-tooltip" class="section-tooltip" role="tooltip" aria-hidden="true"></div>
-          </div>
+            <div class="stadium-container" style="padding:0;">
+              <!-- Google Maps Container -->
+              <div id="google-map" style="width: 100%; height: 500px; border-radius: 12px;"></div>
+            </div>
 
-          <div class="map-controls">
-            <button class="btn-primary" id="smart-route-btn"
-                    aria-label="Calculate the least-congested route to the nearest exit">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
-              </svg>
-              Smart Route to Exit
-            </button>
-            <button class="btn-secondary hidden" id="reset-route-btn"
-                    aria-label="Clear the smart route overlay">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-              </svg>
-              Reset View
-            </button>
-          </div>
+            <div class="map-controls">
+              <button class="btn-primary" id="smart-route-btn" aria-label="Calculate the least-congested route to the nearest exit">
+                <span class="material-icons">directions_run</span> Smart Route to Exit
+              </button>
+              <button class="btn-secondary hidden" id="reset-route-btn" aria-label="Clear the smart route overlay">
+                <span class="material-icons">refresh</span> Reset View
+              </button>
+            </div>
 
           <!-- Smart Route Info Banner -->
           <div class="route-info hidden" id="route-info" role="status">
@@ -174,7 +150,7 @@
           <div class="wait-cards" id="wait-cards">
 
             <article class="wait-card" id="wc-food" aria-label="Food Court wait time">
-              <div class="wait-card__icon" aria-hidden="true">🍔</div>
+              <div class="wait-card__icon material-icons" aria-hidden="true">fastfood</div>
               <div class="wait-card__body">
                 <h3 class="wait-card__label">Food Court</h3>
                 <p class="wait-card__location">Gate A</p>
@@ -190,7 +166,7 @@
             </article>
 
             <article class="wait-card" id="wc-rest" aria-label="Restrooms wait time">
-              <div class="wait-card__icon" aria-hidden="true">🚻</div>
+              <div class="wait-card__icon material-icons" aria-hidden="true">wc</div>
               <div class="wait-card__body">
                 <h3 class="wait-card__label">Restrooms</h3>
                 <p class="wait-card__location">Level 2</p>
@@ -206,7 +182,7 @@
             </article>
 
             <article class="wait-card" id="wc-snack" aria-label="Snack Bar wait time">
-              <div class="wait-card__icon" aria-hidden="true">🥤</div>
+              <div class="wait-card__icon material-icons" aria-hidden="true">local_drink</div>
               <div class="wait-card__body">
                 <h3 class="wait-card__label">Snack Bar</h3>
                 <p class="wait-card__location">Gate C</p>
@@ -222,7 +198,7 @@
             </article>
 
             <article class="wait-card" id="wc-exit" aria-label="Exit Queue wait time">
-              <div class="wait-card__icon" aria-hidden="true">🚪</div>
+              <div class="wait-card__icon material-icons" aria-hidden="true">sensor_door</div>
               <div class="wait-card__body">
                 <h3 class="wait-card__label">Exit Queue</h3>
                 <p class="wait-card__location">South</p>
@@ -266,25 +242,20 @@
           </div>
         </div>
 
+          <div class="metric-card__icon blue material-icons" aria-hidden="true">group</div>
+        </div>
+
         <div class="metric-card" id="mc-alerts">
-          <div class="metric-card__icon red" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-            </svg>
-          </div>
-          <div class="metric-card__body">
-            <div class="metric-card__value danger" id="mv-alerts">7</div>
-            <div class="metric-card__label">Active Alerts</div>
-            <div class="metric-card__change negative">&#9650; 3 new in last hour</div>
-          </div>
+          <div class="metric-card__icon red material-icons" aria-hidden="true">warning</div>
+        </div>
+        <div class="metric-card__body">
+          <div class="metric-card__value danger" id="mv-alerts">7</div>
+          <div class="metric-card__label">Active Alerts</div>
+          <div class="metric-card__change negative">&#9650; 3 new in last hour</div>
         </div>
 
         <div class="metric-card" id="mc-wait">
-          <div class="metric-card__icon orange" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
-            </svg>
-          </div>
+          <div class="metric-card__icon orange material-icons" aria-hidden="true">schedule</div>
           <div class="metric-card__body">
             <div class="metric-card__value warning" id="mv-wait">9.4 min</div>
             <div class="metric-card__label">Avg Wait Time</div>
@@ -293,11 +264,7 @@
         </div>
 
         <div class="metric-card" id="mc-staff">
-          <div class="metric-card__icon green" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-            </svg>
-          </div>
+          <div class="metric-card__icon green material-icons" aria-hidden="true">local_police</div>
           <div class="metric-card__body">
             <div class="metric-card__value success" id="mv-staff">184</div>
             <div class="metric-card__label">Staff On Duty</div>
@@ -312,12 +279,12 @@
         <h2 class="section-title">Live Analytics</h2>
         <div class="charts-grid">
           <div class="chart-card">
-            <h3 class="chart-title">Wait Times (minutes)</h3>
-            <div id="wait-times-chart" role="img" aria-label="Bar chart showing live wait times for each venue facility"></div>
+            <h3 class="chart-title" style="font-family: 'Space Grotesk', sans-serif;">Wait Times (minutes)</h3>
+            <div id="wait-times-chart" class="google-chart-container" role="img" aria-label="Bar chart showing wait times for all 6 zones"></div>
           </div>
           <div class="chart-card">
-            <h3 class="chart-title">Top 10 Densest Sections</h3>
-            <div id="section-density-chart" role="img" aria-label="Bar chart showing the ten most crowded stadium sections by occupancy percentage"></div>
+            <h3 class="chart-title" style="font-family: 'Space Grotesk', sans-serif;">Crowd Density Trend</h3>
+            <div id="density-line-chart" class="google-chart-container" role="img" aria-label="Line chart showing crowd density trend over last 10 intervals"></div>
           </div>
         </div>
       </section>
@@ -407,8 +374,8 @@
     <!-- ===== FOOTER ===== -->
     <footer class="app-footer">
       <div class="footer-content">
-        <span class="footer-logo" aria-hidden="true">&#9673;</span>
-        <span class="footer-logo-text">VenueIQ v1.0</span>
+        <span class="footer-logo material-icons" aria-hidden="true">stadium</span>
+        <span class="footer-logo-text">VenueIQ v2.0</span>
         <span class="footer-sep" aria-hidden="true">—</span>
         <span>Built for <strong>Google Prompt Wars Hackathon</strong></span>
         <span class="footer-sep" aria-hidden="true">—</span>
@@ -418,19 +385,15 @@
 
     <!-- ===== VENUEBOT CHAT ASSISTANT ===== -->
     <button class="venuebot-btn" id="venuebot-btn" aria-label="Open VenueBot AI assistant" title="Ask VenueBot">
-      <svg class="venuebot-icon-chat" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-      </svg>
-      <svg class="venuebot-icon-close hidden" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-      </svg>
+      <span class="venuebot-icon-chat material-icons" aria-hidden="true">smart_toy</span>
+      <span class="venuebot-icon-close hidden material-icons" aria-hidden="true">close</span>
       <span class="venuebot-badge" id="venuebot-badge" aria-label="1 unread message">1</span>
     </button>
 
     <div class="venuebot-panel" id="venuebot-panel" role="dialog" aria-label="VenueBot assistant" aria-modal="true">
       <div class="venuebot-header">
         <div class="venuebot-header-left">
-          <div class="venuebot-avatar" aria-hidden="true">🏟️</div>
+          <div class="venuebot-avatar material-icons" aria-hidden="true">smart_toy</div>
           <div class="venuebot-identity">
             <span class="venuebot-name">VenueBot</span>
             <span class="venuebot-status">
@@ -439,9 +402,7 @@
           </div>
         </div>
         <button class="venuebot-close-btn" id="venuebot-close-btn" aria-label="Close VenueBot chat panel">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <span class="material-icons" aria-hidden="true">close</span>
         </button>
       </div>
       <div class="venuebot-messages" id="venuebot-messages" role="log" aria-live="polite" aria-label="Chat messages">
@@ -453,9 +414,7 @@
                aria-label="Type your message to VenueBot"
                maxlength="200" autocomplete="off" />
         <button class="venuebot-send-btn" id="venuebot-send-btn" aria-label="Send message to VenueBot">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
+          <span class="material-icons" aria-hidden="true">send</span>
         </button>
       </div>
     </div>
