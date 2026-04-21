@@ -11,7 +11,7 @@
 // Access is controlled by Firebase Security Rules
 const FIREBASE_CONFIG = {
   // Public API key — restricted by Firebase Security Rules, not a secret
-  apiKey: 'AIzaSyBkI7ryr8dXujHjOs9Q1O1ALq_gDIpwVlI',
+  apiKey: 'AIzaSyDUKbdmfWIqR6mU0ZXN5hsCthAFS7cixxM',
 
   // Auth domain — kept for SDK compatibility even though Firebase Auth is not used
   authDomain: 'promptwars-proj1.firebaseapp.com',
@@ -23,11 +23,14 @@ const FIREBASE_CONFIG = {
   projectId: 'promptwars-proj1',
 
   // Storage bucket — reserved for future file uploads
-  storageBucket: 'promptwars-proj1.appspot.com',
+  storageBucket: 'promptwars-proj1.firebasestorage.app',
 
   // Messaging sender ID — used only for Cloud Messaging (not active)
   messagingSenderId: '494725153723',
 
   // App ID — uniquely identifies this web app within the Firebase project
-  appId: '1:494725153723:web:venueiq-demo-app'
+  appId: '1:494725153723:web:9923b21570f16a4bc8fa9e',
+
+  // Analytics measurement ID
+  measurementId: 'G-Z194D9YL62'
 };

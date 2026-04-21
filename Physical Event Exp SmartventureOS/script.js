@@ -1,7 +1,7 @@
 /* =============================================
-   VenueIQ — Smart Stadium Experience
-   script.js — No Firebase Auth, PIN-based roles
-   ============================================= */
+  VenueIQ — Smart Stadium Experience
+  script.js — Firebase Auth + Realtime Database
+  ============================================= */
 
 'use strict';
 
@@ -198,6 +198,65 @@ function switchRole() {
   }
 }
 
+function getFriendlyAuthErrorMessage(err) {
+  const code = err && err.code ? err.code : 'auth/unknown';
+
+  if (code === 'auth/unauthorized-domain') {
+    return 'This website domain is not authorized in Firebase Auth. Add this host under Firebase Console -> Authentication -> Settings -> Authorized domains.';
+  }
+  if (code === 'auth/popup-blocked') {
+    return 'Popup was blocked by the browser. We will try redirect sign-in instead.';
+  }
+  if (code === 'auth/popup-closed-by-user') {
+    return 'Sign-in popup was closed before completing login.';
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'Google sign-in is disabled in Firebase. Enable Google provider in Firebase Console -> Authentication -> Sign-in method.';
+  }
+
+  return `Google Sign-In failed (${code}). Please verify Firebase Auth settings and browser popup/cookie permissions.`;
+}
+
+async function startGoogleSignIn() {
+  if (!firebase || !firebase.auth) {
+    alert('Firebase Auth SDK is not available. Please refresh and try again.');
+    return;
+  }
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  if (DOM.btnGoogleSignin) DOM.btnGoogleSignin.disabled = true;
+
+  try {
+    await firebase.auth().signInWithPopup(provider);
+  } catch (err) {
+    console.error('Google popup sign-in failed:', err);
+
+    const popupFallbackCodes = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+      'auth/internal-error'
+    ];
+
+    if (popupFallbackCodes.includes(err && err.code)) {
+      try {
+        await firebase.auth().signInWithRedirect(provider);
+        return;
+      } catch (redirectErr) {
+        console.error('Google redirect sign-in failed:', redirectErr);
+        alert(getFriendlyAuthErrorMessage(redirectErr));
+        return;
+      }
+    }
+
+    alert(getFriendlyAuthErrorMessage(err));
+  } finally {
+    if (DOM.btnGoogleSignin) DOM.btnGoogleSignin.disabled = false;
+  }
+}
+
 /* ─────────────────────────────────────────────
    4. FIREBASE REALTIME DATABASE (No Auth)
    ───────────────────────────────────────────── */
@@ -212,6 +271,12 @@ function initFirebase() {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     state.db = firebase.database();
     console.info('VenueIQ: Firebase Realtime Database connected.');
+
+    // Resolve redirect-based sign-in flows (used as popup fallback).
+    firebase.auth().getRedirectResult().catch(err => {
+      console.error('Google redirect result failed:', err);
+      alert(getFriendlyAuthErrorMessage(err));
+    });
 
     // Auth State
     firebase.auth().onAuthStateChanged(user => {
@@ -582,10 +647,7 @@ function initClock() {
 function bindEventListeners() {
   // Auth
   if (DOM.btnGoogleSignin) {
-    DOM.btnGoogleSignin.addEventListener('click', () => {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      firebase.auth().signInWithPopup(provider).catch(err => console.error(err));
-    });
+    DOM.btnGoogleSignin.addEventListener('click', startGoogleSignIn);
   }
 
   // Theme
