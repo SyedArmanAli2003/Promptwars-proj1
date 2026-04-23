@@ -59,6 +59,30 @@ const VENUEBOT_INTENTS = [
 ];
 const VB_FALLBACK  = '💬 I can help with <strong>food queues</strong>, <strong>restrooms</strong>, <strong>exits</strong>, and <strong>finding your seat</strong>. What do you need?';
 
+const EXIT_POINTS = [
+  { id: 'gate8', name: 'South Exit Gate 8', lat: 51.5551, lng: -0.2804, crowd: 'low' },
+  { id: 'gate6', name: 'West Exit Gate 6', lat: 51.5561, lng: -0.2818, crowd: 'low' },
+  { id: 'north', name: 'North Exit Gate 2', lat: 51.5572, lng: -0.2796, crowd: 'high' }
+];
+
+const WAIT_TIME_BASE = {
+  'Food Court': 8,
+  'Restrooms': 4,
+  'Beer Stand': 12,
+  'Exit South': 6,
+  'Exit North': 18,
+  'First Aid': 2
+};
+
+const FEED_EVENTS = [
+  'Crowd surge detected near East Food Court',
+  'Queue normalized at South Exit Gate 8',
+  'Medical response completed at Section 109',
+  'Staff redeployed to North Concourse',
+  'Restroom wait time dropped below 5 minutes',
+  'Security check completed at Gate 4'
+];
+
 /* ─────────────────────────────────────────────
    2. APPLICATION STATE
    ───────────────────────────────────────────── */
@@ -76,6 +100,14 @@ const state = {
   chartsReady: false,
   sessionTimer: null,
   vbSeeded: false,
+  routeActive: false,
+  smartRoutePolyline: null,
+  smartRouteFallbackEl: null,
+  exitMarkers: [],
+  waitTimeData: { ...WAIT_TIME_BASE },
+  densityTrend: [],
+  chartTimer: null,
+  activityTimer: null,
 };
 
 const DOM = {};
@@ -102,6 +134,11 @@ function cacheDOMElements() {
   DOM.dashTimestamp    = document.getElementById('dash-timestamp');
   DOM.zoneTableBody    = document.getElementById('zone-tbody');
   DOM.reqStaffBtn      = document.getElementById('btn-request-staff');
+  DOM.smartRouteBtn    = document.getElementById('smart-route-btn');
+  DOM.resetRouteBtn    = document.getElementById('reset-route-btn');
+  DOM.routeInfo        = document.getElementById('route-info');
+  DOM.routeInfoClose   = document.getElementById('route-info-close');
+  DOM.feedList         = document.getElementById('feed-list');
   DOM.venuebotBtn      = document.getElementById('venuebot-btn');
   DOM.venuebotPanel    = document.getElementById('venuebot-panel');
   DOM.venuebotMsgs     = document.getElementById('venuebot-messages');
@@ -394,6 +431,84 @@ function initGoogleMaps() {
     });
     marker.addListener('click', () => infoWindow.open(state.map, marker));
   });
+
+  // Exit markers with crowd-level color (green = low crowd)
+  EXIT_POINTS.forEach(exit => {
+    const marker = new google.maps.Marker({
+      position: { lat: exit.lat, lng: exit.lng },
+      map: state.map,
+      title: `${exit.name} (${exit.crowd.toUpperCase()} crowd)`,
+      icon: exit.crowd === 'low'
+        ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+        : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    });
+    state.exitMarkers.push(marker);
+  });
+
+  state.smartRouteFallbackEl = document.createElement('div');
+  state.smartRouteFallbackEl.className = 'smart-route-fallback';
+  el.appendChild(state.smartRouteFallbackEl);
+}
+
+function getDistance(a, b) {
+  const dx = a.lat - b.lat;
+  const dy = a.lng - b.lng;
+  return Math.sqrt((dx * dx) + (dy * dy));
+}
+
+function findNearestLowCrowdExit() {
+  const lowExits = EXIT_POINTS.filter(exit => exit.crowd === 'low');
+  if (lowExits.length === 0) return null;
+  return lowExits.reduce((nearest, current) => {
+    if (!nearest) return current;
+    return getDistance(WEMBLEY_COORDS, current) < getDistance(WEMBLEY_COORDS, nearest) ? current : nearest;
+  }, null);
+}
+
+function setSmartRouteUi(active) {
+  state.routeActive = active;
+  if (DOM.smartRouteBtn) {
+    DOM.smartRouteBtn.classList.toggle('route-active', active);
+    DOM.smartRouteBtn.innerHTML = active
+      ? '<span class="material-icons">check_circle</span> Route Active 🟢'
+      : '<span class="material-icons">directions_run</span> Smart Route to Exit';
+  }
+  if (DOM.resetRouteBtn) DOM.resetRouteBtn.classList.toggle('hidden', !active);
+  if (DOM.routeInfo) DOM.routeInfo.classList.toggle('hidden', !active);
+}
+
+function deactivateSmartRoute() {
+  if (state.smartRoutePolyline) {
+    state.smartRoutePolyline.setMap(null);
+    state.smartRoutePolyline = null;
+  }
+  if (state.smartRouteFallbackEl) state.smartRouteFallbackEl.classList.remove('active');
+  setSmartRouteUi(false);
+}
+
+function activateSmartRoute() {
+  if (!state.map || typeof google === 'undefined' || !google.maps) return;
+  const targetExit = findNearestLowCrowdExit();
+  if (!targetExit) return;
+
+  deactivateSmartRoute();
+
+  try {
+    state.smartRoutePolyline = new google.maps.Polyline({
+      path: [WEMBLEY_COORDS, { lat: targetExit.lat, lng: targetExit.lng }],
+      geodesic: true,
+      strokeColor: '#00e676',
+      strokeOpacity: 0.95,
+      strokeWeight: 7,
+      map: state.map
+    });
+  } catch (err) {
+    console.warn('Smart route polyline failed, using CSS fallback:', err);
+    if (state.smartRouteFallbackEl) state.smartRouteFallbackEl.classList.add('active');
+  }
+
+  setSmartRouteUi(true);
+  logEventToFirebase('smart_route', { target: targetExit.name, ts: Date.now() });
 }
 
 function updateMapPolygons() {
@@ -422,6 +537,17 @@ function initGoogleCharts() {
     if (gaugeEl) state.gaugeChart       = new google.visualization.Gauge(gaugeEl);
     if (barEl)   state.waitTimesChart   = new google.visualization.BarChart(barEl);
     if (lineEl)  state.densityLineChart = new google.visualization.LineChart(lineEl);
+    if (state.densityTrend.length === 0) {
+      for (let i = 0; i < 10; i++) {
+        state.densityTrend.push(Math.floor(Math.random() * 51) + 40);
+      }
+    }
+    if (!state.chartTimer) {
+      state.chartTimer = setInterval(() => {
+        mutateDashboardChartData();
+        updateCharts();
+      }, 10000);
+    }
     updateCharts();
   });
 }
@@ -437,10 +563,11 @@ const DARK_OPTS = {
 function updateCharts() {
   if (!state.chartsReady) return;
   const keys = Object.keys(state.zonesData);
-  if (keys.length === 0) return;
+  const avgDensity = keys.length > 0
+    ? Math.round(keys.reduce((s, k) => s + (state.zonesData[k].density || 0), 0) / keys.length)
+    : Math.round(state.densityTrend.reduce((sum, val) => sum + val, 0) / Math.max(1, state.densityTrend.length));
 
   // 1. Gauge — overall average density
-  const avgDensity = Math.round(keys.reduce((s, k) => s + (state.zonesData[k].density || 0), 0) / keys.length);
   if (state.gaugeChart) {
     const gData = google.visualization.arrayToDataTable([['Label', 'Value'], ['Capacity %', avgDensity]]);
     state.gaugeChart.draw(gData, {
@@ -454,22 +581,45 @@ function updateCharts() {
   // 2. Bar — zone wait times
   if (state.waitTimesChart) {
     const bRows = [['Zone', 'Wait (min)', { role: 'style' }]];
-    keys.forEach(k => {
-      const w = state.zonesData[k].waitTime || 0;
-      const c = w > 12 ? '#ef4444' : w > 5 ? '#f59e0b' : '#22c55e';
-      bRows.push([state.zonesData[k] ? k : k, w, c]);
+    Object.keys(state.waitTimeData).forEach(zone => {
+      const value = state.waitTimeData[zone];
+      const color = value > 10 ? '#ef4444' : '#22c55e';
+      bRows.push([zone, value, color]);
     });
-    state.waitTimesChart.draw(google.visualization.arrayToDataTable(bRows), { ...DARK_OPTS });
+    state.waitTimesChart.draw(google.visualization.arrayToDataTable(bRows), {
+      ...DARK_OPTS,
+      legend: { position: 'none' },
+      chartArea: { left: 90, right: 20, top: 16, bottom: 40 },
+      hAxis: { ...DARK_OPTS.hAxis, minValue: 0 }
+    });
   }
 
   // 3. Line — density trend history (last 10 ticks)
   if (state.densityLineChart) {
-    state.historyCounter++;
-    state.densityHistory.push([`T${state.historyCounter}`, avgDensity]);
-    if (state.densityHistory.length > 11) state.densityHistory.splice(1, 1);
-    const lData = google.visualization.arrayToDataTable(state.densityHistory);
-    state.densityLineChart.draw(lData, { ...DARK_OPTS, colors: ['#00b8ff'] });
+    const lineRows = [['Time', 'Density %']];
+    state.densityTrend.forEach((value, idx) => lineRows.push([`T${idx + 1}`, value]));
+    const lData = google.visualization.arrayToDataTable(lineRows);
+    state.densityLineChart.draw(lData, {
+      ...DARK_OPTS,
+      colors: ['#00e676'],
+      legend: { position: 'none' },
+      chartArea: { left: 50, right: 20, top: 16, bottom: 40 },
+      vAxis: { ...DARK_OPTS.vAxis, minValue: 35, maxValue: 95 }
+    });
   }
+}
+
+function mutateDashboardChartData() {
+  Object.keys(state.waitTimeData).forEach(zone => {
+    const base = WAIT_TIME_BASE[zone];
+    const drift = Math.floor(Math.random() * 5) - 2;
+    const next = state.waitTimeData[zone] + drift;
+    state.waitTimeData[zone] = Math.max(1, Math.min(25, Math.round((next + base) / 2)));
+  });
+
+  const nextDensity = Math.floor(Math.random() * 51) + 40;
+  state.densityTrend.push(nextDensity);
+  if (state.densityTrend.length > 10) state.densityTrend.shift();
 }
 
 /* ─────────────────────────────────────────────
@@ -483,6 +633,35 @@ function updateUIWithFirebaseData() {
   if (d['EastWing']   && DOM.wb.snack) setWaitCard('snack', d['EastWing'].waitTime);
   if (d['NorthStand'] && DOM.wb.exit)  setWaitCard('exit',  d['NorthStand'].waitTime);
   renderZoneTable(d);
+}
+
+function appendFeedEvent(message, type) {
+  if (!DOM.feedList) return;
+  const item = document.createElement('div');
+  item.className = `feed-item ${type || 'info-event'}`;
+  const ts = document.createElement('div');
+  ts.className = 'feed-timestamp';
+  ts.textContent = new Date().toLocaleTimeString();
+  const msg = document.createElement('div');
+  msg.className = 'feed-message';
+  msg.innerHTML = `<span class="feed-indicator"></span>${message}`;
+  item.appendChild(ts);
+  item.appendChild(msg);
+  DOM.feedList.prepend(item);
+  while (DOM.feedList.children.length > 16) {
+    DOM.feedList.removeChild(DOM.feedList.lastChild);
+  }
+}
+
+function startActivityFeed() {
+  if (state.activityTimer || !DOM.feedList) return;
+  appendFeedEvent('Live monitoring started for all venue zones', 'info-event');
+  state.activityTimer = setInterval(() => {
+    const msg = FEED_EVENTS[Math.floor(Math.random() * FEED_EVENTS.length)];
+    const typeRand = Math.random();
+    const type = typeRand < 0.33 ? 'alert-event' : (typeRand < 0.66 ? 'deploy-event' : 'info-event');
+    appendFeedEvent(msg, type);
+  }, 5000);
 }
 
 function setWaitCard(key, mins) {
@@ -558,6 +737,8 @@ function onVbInputChange() {
   const valid = validateVbInput(raw);
   const hasHtml = /<|>|script|javascript/i.test(raw);
 
+  if (!DOM.vbInputError || !DOM.venuebotSend) return;
+
   if (hasHtml || (!valid && raw.length > 0)) {
     DOM.vbInputError.classList.remove('hidden');
     DOM.venuebotSend.disabled = true;
@@ -568,14 +749,18 @@ function onVbInputChange() {
 }
 
 function sendVenueBotMessage() {
+  if (!DOM.venuebotInput || !DOM.venuebotMsgs) return;
   const raw = DOM.venuebotInput ? DOM.venuebotInput.value : '';
   const clean = sanitizeInput(raw);
   if (!clean) return;
-  if (!validateVbInput(clean)) { DOM.vbInputError.classList.remove('hidden'); return; }
+  if (!validateVbInput(clean)) {
+    if (DOM.vbInputError) DOM.vbInputError.classList.remove('hidden');
+    return;
+  }
 
   DOM.venuebotInput.value = '';
-  DOM.vbInputError.classList.add('hidden');
-  DOM.venuebotSend.disabled = false;
+  if (DOM.vbInputError) DOM.vbInputError.classList.add('hidden');
+  if (DOM.venuebotSend) DOM.venuebotSend.disabled = false;
 
   vbAppend('user', clean);
   vbShowTyping();
@@ -592,6 +777,7 @@ function sendVenueBotMessage() {
 }
 
 function vbAppend(sender, html) {
+  if (!DOM.venuebotMsgs) return;
   const wrap = document.createElement('div');
   wrap.className = `vb-msg vb-${sender}`;
   const bubble = document.createElement('div');
@@ -607,6 +793,7 @@ function vbAppend(sender, html) {
 }
 
 function vbShowTyping() {
+  if (!DOM.venuebotMsgs) return;
   const d = document.createElement('div');
   d.id = 'vb-typing-dots';
   d.className = 'vb-typing';
@@ -677,15 +864,44 @@ function bindEventListeners() {
     alert('Your request for Staff access has been submitted and logged.');
   });
 
+  // Smart route to exit
+  if (DOM.smartRouteBtn) {
+    DOM.smartRouteBtn.addEventListener('click', () => {
+      if (state.routeActive) {
+        deactivateSmartRoute();
+      } else {
+        activateSmartRoute();
+      }
+    });
+  }
+  if (DOM.resetRouteBtn) DOM.resetRouteBtn.addEventListener('click', deactivateSmartRoute);
+  if (DOM.routeInfoClose) DOM.routeInfoClose.addEventListener('click', deactivateSmartRoute);
+
   // VenueBot
   if (DOM.venuebotBtn) DOM.venuebotBtn.addEventListener('click', () => {
+    if (!DOM.venuebotPanel) return;
     DOM.venuebotPanel.classList.toggle('open');
-    if (DOM.venuebotPanel.classList.contains('open')) seedVenueBot();
+    const isOpen = DOM.venuebotPanel.classList.contains('open');
+    DOM.venuebotBtn.classList.toggle('open', isOpen);
+    if (isOpen) {
+      seedVenueBot();
+      if (DOM.venuebotInput) DOM.venuebotInput.focus();
+    }
   });
-  if (DOM.venuebotClose) DOM.venuebotClose.addEventListener('click', () => DOM.venuebotPanel.classList.remove('open'));
+  if (DOM.venuebotClose) {
+    DOM.venuebotClose.addEventListener('click', () => {
+      if (DOM.venuebotPanel) DOM.venuebotPanel.classList.remove('open');
+      if (DOM.venuebotBtn) DOM.venuebotBtn.classList.remove('open');
+    });
+  }
   if (DOM.venuebotSend)  DOM.venuebotSend.addEventListener('click', sendVenueBotMessage);
   if (DOM.venuebotInput) {
-    DOM.venuebotInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendVenueBotMessage(); });
+    DOM.venuebotInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendVenueBotMessage();
+      }
+    });
     DOM.venuebotInput.addEventListener('input', onVbInputChange);
   }
 
@@ -694,6 +910,7 @@ function bindEventListeners() {
     const btn = e.target.closest('.deploy-btn');
     if (btn) {
       logEventToFirebase('deploy_staff', { zone: btn.dataset.zone, ts: Date.now() });
+      appendFeedEvent(`Staff deployed to ${btn.dataset.zone}`, 'deploy-event');
       btn.disabled = true;
       btn.innerHTML = '<span class="material-icons" style="font-size:15px;vertical-align:middle;">check_circle</span> Deployed';
       btn.classList.add('deployed');
@@ -711,6 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindEventListeners();
   initClock();
   initFirebase();
+  startActivityFeed();
 
   // Restore session if already active (handled primarily by onAuthStateChanged now, but keep fallback)
   const savedRole = getRole();

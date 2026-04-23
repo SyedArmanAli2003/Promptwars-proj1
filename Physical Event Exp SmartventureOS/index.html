@@ -187,9 +187,12 @@
               <path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.28L13 17v5l6-3-1.22-1.22C20.91 15.86 23 12.18 23 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 4.18 2.09 7.86 5.22 10.05L6 23l6 3v-5l-2.28 2.28C7.81 22 6 19.21 6 16c0-4.08 3.05-7.44 7-7.93V2.05z"/>
             </svg>
             <div>
-              <strong>Smart Route activated</strong>
-              <span>Head to Gate 6 (West) via South concourse — You'll save ~8 mins!</span>
+              <strong>✅ Smart Route Active</strong>
+              <span>Head to South Exit Gate 8 — Estimated 3 min walk — Saving you 8 minutes</span>
             </div>
+            <button id="route-info-close" class="route-close-btn" aria-label="Close smart route banner">
+              <span class="material-icons" aria-hidden="true">close</span>
+            </button>
           </div>
         </section>
 
@@ -291,16 +294,13 @@
           </div>
         </div>
 
-          <div class="metric-card__icon blue material-icons" aria-hidden="true">group</div>
-        </div>
-
         <div class="metric-card" id="mc-alerts">
           <div class="metric-card__icon red material-icons" aria-hidden="true">warning</div>
-        </div>
-        <div class="metric-card__body">
-          <div class="metric-card__value danger" id="mv-alerts">7</div>
-          <div class="metric-card__label">Active Alerts</div>
-          <div class="metric-card__change negative">&#9650; 3 new in last hour</div>
+          <div class="metric-card__body">
+            <div class="metric-card__value danger" id="mv-alerts">7</div>
+            <div class="metric-card__label">Active Alerts</div>
+            <div class="metric-card__change negative">&#9650; 3 new in last hour</div>
+          </div>
         </div>
 
         <div class="metric-card" id="mc-wait">
@@ -325,7 +325,7 @@
 
       <!-- Google Charts Analytics Section -->
       <section class="charts-section" aria-label="Live analytics charts">
-        <h2 class="section-title">Live Analytics</h2>
+        <h2 class="section-title live-analytics-title">Live Analytics <span class="live-dot" aria-hidden="true"></span></h2>
         <div class="charts-grid">
           <div class="chart-card">
             <h3 class="chart-title" style="font-family: 'Space Grotesk', sans-serif;">Wait Times (minutes)</h3>
@@ -437,44 +437,6 @@
         </span>
       </div>
     </footer>
-
-    <!-- ===== VENUEBOT CHAT ASSISTANT ===== -->
-    <button class="venuebot-btn" id="venuebot-btn" aria-label="Open VenueBot AI assistant" title="Ask VenueBot">
-      <span class="venuebot-icon-chat material-icons" aria-hidden="true">smart_toy</span>
-      <span class="venuebot-icon-close hidden material-icons" aria-hidden="true">close</span>
-      <span class="venuebot-badge" id="venuebot-badge" aria-label="1 unread message">1</span>
-    </button>
-
-    <div class="venuebot-panel" id="venuebot-panel" role="dialog" aria-label="VenueBot assistant" aria-modal="true">
-      <div class="venuebot-header">
-        <div class="venuebot-header-left">
-          <div class="venuebot-avatar material-icons" aria-hidden="true">smart_toy</div>
-          <div class="venuebot-identity">
-            <span class="venuebot-name">VenueBot</span>
-            <span class="venuebot-status">
-              <span class="venuebot-online-dot" aria-hidden="true"></span>AI Assistant · Online
-            </span>
-          </div>
-        </div>
-        <button class="venuebot-close-btn" id="venuebot-close-btn" aria-label="Close VenueBot chat panel">
-          <span class="material-icons" aria-hidden="true">close</span>
-        </button>
-      </div>
-      <div class="venuebot-messages" id="venuebot-messages" role="log" aria-live="polite" aria-label="Chat messages">
-        <!-- Populated by JS on first open -->
-      </div>
-      <div class="venuebot-composer">
-        <input type="text" id="venuebot-input" class="venuebot-input"
-               placeholder="Ask about food, exits, restrooms…"
-               aria-label="Type your message to VenueBot"
-               maxlength="200" autocomplete="off" />
-        <button class="venuebot-send-btn" id="venuebot-send-btn" aria-label="Send message to VenueBot">
-          <span class="material-icons" aria-hidden="true">send</span>
-        </button>
-      </div>
-    </div>
-
-    </div>
 
   </div><!-- /#main-app -->
 
