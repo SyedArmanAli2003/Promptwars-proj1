@@ -15,5 +15,5 @@ const FIREBASE_CONFIG =
     : undefined;
 
 if (typeof FIREBASE_CONFIG === 'undefined') {
-  console.info('Firebase config is not set. Create firebaseConfig.local.js from firebaseConfig.local.example.js to enable Firebase features.');
+  console.warn('Firebase config is not set. Create firebaseConfig.local.js from firebaseConfig.local.example.js to enable Firebase features.');
 }
